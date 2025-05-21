@@ -197,11 +197,11 @@ jobs:
           echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
 
-      # - name: Read GCP SA key JSON
-      #   run: |
-      #     echo "SA_KEY<<EOF" >> $GITHUB_ENV
-      #     cat gcp-sa-key.json >> $GITHUB_ENV
-      #     echo "EOF" >> $GITHUB_ENV
+      - name: Read GCP SA key JSON
+        run: |
+          echo "SA_KEY<<EOF" >> $GITHUB_ENV
+          cat gcp-sa-key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
@@ -276,6 +276,7 @@ jobs:
       - name: Send failure notification
         if: failure() || steps.set-result.outputs.status == 'failure'
         run: |
+          echo "status=failure" >> $GITHUB_OUTPUT
           echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
