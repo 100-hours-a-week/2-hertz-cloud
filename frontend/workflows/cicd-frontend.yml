@@ -139,9 +139,6 @@ jobs:
   frontend-cd:
     # needs: frontend-ci
     runs-on: ubuntu-latest
-    outputs:
-      deploy_status: ${{ steps.set-result.outputs.status }}
-      target_branch: ${{ steps.set-result.outputs.branch }}
     steps:
       # # ✅ act 테스트용 필요 패키지 설치 (명령어: act workflow_dispatch -W .github/workflows/cicd-frontend.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest)
       # - name: Install required tools
@@ -248,7 +245,6 @@ jobs:
           sleep 15
 
       - name: Health check with retries
-        id: set-result
         run: |
           echo "🔍 헬스체크 시작: 최대 3회 시도합니다."
           if [[ "${{ env.ENV }}" == "PROD" ]]; then
@@ -261,7 +257,6 @@ jobs:
             echo "⏱️ 시도 $i: $CHECK_URL"
             if curl -sf --connect-timeout 5 --max-time 10 "$CHECK_URL"; then
               echo "✅ 헬스체크 성공 🎉"
-              echo "status=success" >> $GITHUB_OUTPUT
               exit 0
             else
               echo "::error::헬스체크 시도 $i 실패"
@@ -270,14 +265,11 @@ jobs:
           done
 
           echo "::error::❌ 3회 헬스체크 실패 - 서버가 정상 기동되지 않음"
-          echo "status=failure" >> $GITHUB_OUTPUT
-          exit 0
+          exit 1
 
       - name: Send failure notification
-        if: failure() || steps.set-result.outputs.status == 'failure'
+        if: failure()
         run: |
-          echo "status=failure" >> $GITHUB_OUTPUT
-          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
               -X POST \
@@ -285,7 +277,7 @@ jobs:
               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send success notification
-        if: steps.set-result.outputs.status == 'success'
+        if: success()
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
@@ -294,7 +286,7 @@ jobs:
 
   frontend-rollback:
     needs: frontend-cd
-    if: needs.frontend-cd.outputs.deploy_status == 'failure'
+    if: always() && needs.frontend-cd.result != 'success'
     runs-on: ubuntu-latest
     steps:
       # # ✅ act 테스트용 필요 패키지 설치
@@ -381,6 +373,11 @@ jobs:
           script: |
             cd /home/deploy
             ./fe_deploy.sh --rollback || exit 1
+
+      - name: Wait for Next.JS to start
+        run: |
+          echo "🕒 Next.JS 서버 기동 대기 중..."
+          sleep 15
 
       - name: Health check with retries
         run: |

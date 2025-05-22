@@ -7,14 +7,24 @@ on:
       - main # main 브랜치로 Merge 시 -> PROD 환경에 배포
       - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
 
+  # ✅ 수동 `실행 트리거 추가
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "배포 환경 선택"
+        required: true
+        default: "DEV"
+        type: choice
+        options:
+          - DEV
+          - PROD
+
 jobs:
   backend-cd:
     runs-on: ubuntu-latest
-    outputs:
-      deploy_status: ${{ steps.set-result.outputs.status }}
-      target_branch: ${{ steps.set-result.outputs.branch }}
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     steps:
-      # # ✅ act 테스트용 필요 패키지 설치 (명령어: act -W .github/workflows/cd-backend.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest)
+      # # ✅ act 테스트용 필요 패키지 설치 (명령어: act workflow_dispatch -W .github/workflows/cicd-backend.yml -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest)
       # - name: Install required tools
       #   run: |
       #     apt-get update && apt-get install -y awscli curl jq
@@ -48,9 +58,6 @@ jobs:
 
           BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-
-          load_param "/global/gcp/GCP_ZONE" ZONE
-
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=PROD" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST" HOST
@@ -64,6 +71,8 @@ jobs:
             load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
             load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY" gcp-sa-key.json
           fi
+
+          load_param "/global/gcp/GCP_ZONE" ZONE
 
           echo "SA_KEY<<EOF" >> $GITHUB_ENV
           cat gcp-sa-key.json >> $GITHUB_ENV
@@ -121,10 +130,11 @@ jobs:
             ./be_deploy.sh
 
       - name: Wait for Spring Boot to start
-        run: sleep 15
+        run: |
+          echo "🕒 Spring Boot 서버 기동 대기 중..."
+          sleep 15
 
       - name: Health check with retries
-        id: set-result
         run: |
           echo "🔍 헬스체크 시작"
           if [[ "${{ env.BRANCH }}" == "main" ]]; then
@@ -137,7 +147,6 @@ jobs:
             echo "⏱️ 시도 $i: $CHECK_URL"
             if curl -sf "$CHECK_URL"; then
               echo "✅ 헬스체크 성공"
-              echo "status=success" >> $GITHUB_OUTPUT
               exit 0
             else
               echo "::error::헬스체크 시도 $i 실패"
@@ -146,11 +155,10 @@ jobs:
           done
 
           echo "::error::❌ 3회 헬스체크 실패"
-          echo "status=failure" >> $GITHUB_OUTPUT
-          exit 0
+          exit 1
 
       - name: Send failure notification
-        if: failure() || steps.set-result.outputs.status == 'failure'
+        if: failure()
         run: |
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
@@ -159,7 +167,7 @@ jobs:
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send success notification
-        if: steps.set-result.outputs.status == 'success'
+        if: success()
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
@@ -168,7 +176,7 @@ jobs:
 
   backend-rollback:
     needs: backend-cd
-    if: needs.backend-cd.outputs.deploy_status == 'failure'
+    if: always() && needs.backend-cd.result != 'success'
     runs-on: ubuntu-latest
     steps:
       # # ✅ act 테스트용 필요 패키지 설치
@@ -204,7 +212,6 @@ jobs:
 
           BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=PROD" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST" HOST
@@ -253,6 +260,11 @@ jobs:
           script: |
             cd /home/deploy
             ./be_deploy.sh --rollback || exit 1
+
+      - name: Wait for Spring Boot to start
+        run: |
+          echo "🕒 Spring Boot 서버 기동 대기 중..."
+          sleep 15
 
       - name: Health check with retries
         run: |
