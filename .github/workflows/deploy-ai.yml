@@ -11,7 +11,14 @@ on:
         options:
           - "false"
           - "true"
-
+      deploy_type:
+        description: "배포 방식을 선택하세요 (docker-compose or pm2)"
+        required: true
+        default: "docker"
+        type: choice
+        options:
+          - "docker"
+          - "pm2"
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -40,6 +47,7 @@ jobs:
 
           echo "ROLLBACK=${{ github.event.inputs.rollback }}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
+          echo "DEPLOY_TYPE=${{ github.event.inputs.deploy_type }}" >> $GITHUB_ENV
 
       - name: Set deploy message
         run: |
@@ -90,15 +98,27 @@ jobs:
           host: ${{ env.HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
           script: |
-            cd /home/deploy
-            pm2 restart ecosystem.config.js 
-            chmod +x ai_deploy.sh
-            if [[ "${{ env.ROLLBACK }}" == "true" ]]; then
-              ./ai_deploy.sh --rollback
+            if[[ "${{ env.DEPLOY_TYPE }}" == "docker" ]]; then
+              echo "🚀 Docker 배포 시작..."
+              cd /home/deploy
+              pm2 stop fastapi-ai
+
+              docker compose -f docker-compose-tuning.yml --env-file=.env up -d --build
             else
-              ./ai_deploy.sh
+              echo "🚀 PM2 배포 시작..."
+              cd /home/deploy
+              docker stop tuning
+              pm2 restart ecosystem.config.js 
+              chmod +x ai_deploy.sh
+              if [[ "${{ env.ROLLBACK }}" == "true" ]]; then
+                ./ai_deploy.sh --rollback
+              else
+                ./ai_deploy.sh
+              fi
             fi
+           
 
       - name: Wait for FastAPI to start
         run: |

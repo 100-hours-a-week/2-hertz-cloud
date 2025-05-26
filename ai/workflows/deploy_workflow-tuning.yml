@@ -1,11 +1,11 @@
 # .github/workflows/fastapi-ai-ci.yml
 name: AI CI/CD
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
-      - develop
+#  pull_request:
+#    types: [closed]
+#    branches:
+#      - main
+#    # - develop
   workflow_dispatch:
     inputs:
       environment:
@@ -101,18 +101,20 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-          echo "ZONE=${{ secrets.GCP_ZONE }}" >> $GITHUB_ENV
+    
 
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=production" >> $GITHUB_ENV
             echo "HOST=${{ secrets.PROD_GCP_HOST_AI }}" >> $GITHUB_ENV
             echo "INSTANCE=${{ secrets.PROD_GCP_INSTANCE_AI }}" >> $GITHUB_ENV
             echo "PROJECT_ID=${{ secrets.PROD_GCP_PROJECT_ID }}" >> $GITHUB_ENV
+            echo "ZONE=${{ secrets.PROD_GCP_ZONE }}" >> $GITHUB_ENV
           else
             echo "ENV=develop" >> $GITHUB_ENV
             echo "HOST=${{ secrets.DEV_GCP_HOST_AI }}" >> $GITHUB_ENV
             echo "INSTANCE=${{ secrets.DEV_GCP_INSTANCE_AI }}" >> $GITHUB_ENV
             echo "PROJECT_ID=${{ secrets.DEV_GCP_PROJECT_ID }}" >> $GITHUB_ENV
+            echo "ZONE=${{ secrets.DEV_GCP_ZONE }}" >> $GITHUB_ENV
           fi
 
           echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV

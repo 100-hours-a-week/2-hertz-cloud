@@ -1,14 +1,11 @@
 name: AI Docker CI/CD
 
 on:
-  push:
-    branches:
-      - feature/docker-deploy # feature/docker-deploy 브랜치에 Push 시 CI/CD 실행
   pull_request:
     types: [closed]
     branches:
-      - feature/docker-deploy
-    #  - develop
+    # - feature/docker-deploy
+      - develop
     #  - main
   workflow_dispatch:
     inputs:
@@ -296,15 +293,30 @@ jobs:
               echo "❌ ECR 로그인 실패"
               exit 1
             fi
-
+            
+            #Production 환경에서는CPU 제한 3.5로 설정
+            if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
+              CPU_LIMIT=3.5
+            else
+              CPU_LIMIT=2.0
+            fi
 
             # .env 파일에 이미지 정보 세팅
             echo "# 이미지 설정" > .env
             echo "FULL_IMAGE=${FULL_IMAGE}" >> .env
+            echo "CPU_LIMIT=${CPU_LIMIT}" >> .env
 
             # 기존 컨테이너 중지/삭제 후 최신 이미지로 실행
-            docker-compose -f docker-compose-tuning.yml stop tuning
-            docker-compose -f docker-compose-tuning.yml rm -f tuning
+
+
+            if [ ! -d "/home/deploy/models/jhgan-ko-sbert-nli" ]; then
+              echo "모델 디렉토리가 없습니다. 모델을 먼저 다운로드합니다."
+              docker compose -f docker-compose-tuning run --rm tuning python scripts/download_model.py
+            else
+              echo "모델 디렉토리가 이미 존재합니다. 다운로드를 건너뜁니다."
+            fi            
+            docker compose -f docker-compose-tuning.yml stop tuning
+            docker compose -f docker-compose-tuning.yml rm -f tuning
             docker compose --env-file .env -f docker-compose-tuning.yml up -d tuning
 
             echo "🕒 FastAPI 서버 기동 대기 중..."
@@ -314,7 +326,7 @@ jobs:
              # 최초 롤백 대비: 파일이 없으면 빈 파일 생성(최초 배포, 또는 수동 복구 대비)
             [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
-            for i in {1..3}; do
+            for i in {1..5}; do
              if curl -sf http://localhost:8000/api/v1/health; then
                 echo "✅ API 서비스가 정상적으로 시작되었습니다."
                 echo "$IMAGE_TAG" > last-successful-tag.txt
@@ -327,8 +339,8 @@ jobs:
                 fi
                 exit 0
               fi
-              echo "⏱️ API 서비스 준비 대기 중... ($i/3)"
-              sleep 5
+              echo "⏱️ API 서비스 준비 대기 중... ($i/5)"
+              sleep 10
             done
 
             if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
@@ -338,11 +350,11 @@ jobs:
               if grep -q '^FULL_IMAGE=' .env; then
                 sed -i "s|^FULL_IMAGE=.*|FULL_IMAGE=${PREV_IMAGE}|" .env
               else
-                echo "FULL_IMAGE=${PREV_IMAGE}" > .env
+                echo "FULL_IMAGE=${PREV_IMAGE}" >> .env
               fi
               
-              docker-compose -f docker-compose-tuning.yml stop tuning
-              docker-compose -f docker-compose-tuning.yml rm -f tuning
+              docker compose -f docker-compose-tuning.yml stop tuning
+              docker compose -f docker-compose-tuning.yml rm -f tuning
               docker compose --env-file .env -f docker-compose-tuning.yml up -d tuning
               echo "✅ 롤백 완료! (이전 이미지로 복구됨)"
             else
@@ -350,7 +362,7 @@ jobs:
             fi
 
             echo "📝 최근 로그 확인:"
-            docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
+            docker compose -f docker-compose-tuning.yml logs --tail=10 tuning
             #실패
             exit 1
 

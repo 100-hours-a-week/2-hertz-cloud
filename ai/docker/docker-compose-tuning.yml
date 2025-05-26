@@ -22,7 +22,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "3.0"
+          cpus: ${CPU_LIMIT:-1.5} # CPU 제한 (예: 2.0)
           memory: "11G"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/api/v1/health/chromadb" ]
