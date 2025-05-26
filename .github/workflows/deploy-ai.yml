@@ -100,7 +100,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
         
           script: |
-            if[[ "${{ env.DEPLOY_TYPE }}" == "docker" ]]; then
+            if [[ "${{ env.DEPLOY_TYPE }}" == "docker" ]]; then
               echo "🚀 Docker 배포 시작..."
               cd /home/deploy
               pm2 stop fastapi-ai
