@@ -37,7 +37,7 @@ variable "openvpn_admin_password" {
   type        = string
 }
 
-variable "deploy_ssh_public_key" {
+variable "ssh_private_key" {
   description = "deploy 계정에 등록할 SSH 공개 키"
   type        = string
 }

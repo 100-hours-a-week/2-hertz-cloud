@@ -147,7 +147,7 @@ module "bastion_openvpn" {
   })
 
   # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
-  deploy_ssh_public_key = var.deploy_ssh_public_key
+  deploy_ssh_public_key = var.ssh_private_key
 
   service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
