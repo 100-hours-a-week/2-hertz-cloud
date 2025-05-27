@@ -44,4 +44,5 @@ variable "ssh_private_key" {
 variable "extra_startup_script" {
   description = "추가 사용자 정의 startup script (예: OpenVPN 등)"
   type        = string
+  default     = ""
 }
