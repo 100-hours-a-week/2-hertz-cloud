@@ -1,25 +1,41 @@
 variable "project_id" {
-  type        = string
-  description = "GCP 프로젝트 ID"
+  type = string
 }
 
 variable "region" {
-  type        = string
-  description = "리전 (subnet에 적용)"
+  type = string
 }
 
 variable "vpc_name" {
-  type        = string
-  description = "VPC 이름"
+  type = string
 }
 
-variable "subnets" {
-  description = "Subnets 리스트: name, cidr, private_ip_google_access"
+variable "public_subnets" {
   type = list(object({
     name                     = string
     cidr                     = string
     private_ip_google_access = bool
-    purpose                  = optional(string)
-    role                     = optional(string)
+    component                = string # "public"
   }))
+  default = []
+}
+
+variable "private_subnets" {
+  type = list(object({
+    name                     = string
+    cidr                     = string
+    private_ip_google_access = bool
+    component                = string # "private"
+  }))
+  default = []
+}
+
+variable "nat_subnets" {
+  type = list(object({
+    name                     = string
+    cidr                     = string
+    private_ip_google_access = bool
+    component                = string # "nat"
+  }))
+  default = []
 }
