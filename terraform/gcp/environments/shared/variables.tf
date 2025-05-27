@@ -27,3 +27,12 @@ variable "env" {
   default     = "shared"
   
 }
+variable "default_sa_email" {
+  description = "기본 서비스 계정 이메일"
+  type        = string
+}
+
+variable "openvpn_admin_password" {
+  description = "OpenVPN 관리자 비밀번호"
+  type        = string
+}

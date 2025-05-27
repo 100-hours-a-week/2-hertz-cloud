@@ -98,7 +98,29 @@ locals {
       ]
       target_tags   = []
       description   = "Allow internal traffic"
-    }
+    },
+    {
+      name          = "ingress-openvpn"
+      env           = var.env
+      direction     = "INGRESS"
+      priority      = 1001
+      protocol      = "udp"
+      ports         = ["1194"]
+      source_ranges = ["0.0.0.0/0"]
+      target_tags   = ["openvpn"]
+      description   = "Allow OpenVPN UDP traffic"
+    },
+    {
+    name          = "openvpn-console"
+    env           = var.env
+    direction     = "INGRESS"
+    priority      = 1002
+    protocol      = "tcp"
+    ports         = ["943", "443"]
+    source_ranges = ["0.0.0.0/0"]
+    target_tags   = ["openvpn"]
+    description   = "Allow OpenVPN admin and client web access"
+}
   ]
 }
 
@@ -108,4 +130,20 @@ module "firewall" {
   firewall_rules = local.firewall_rules
 }
 
-###project 관련
+
+module "bastion_openvpn" {
+  source                = "../../modules/compute"
+  name                  = "openvpn"
+  machine_type          = "e2-micro"
+  zone                  = "asia-east1-a"
+  tags                  = ["openvpn","openvpn-console"]
+  image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
+  disk_size_gb          = 10
+  subnetwork            = module.network.subnets["${var.vpc_name}-public-a"].self_link
+   startup_script        = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
+    admin_password = var.openvpn_admin_password
+  })
+
+  service_account_email = var.default_sa_email
+  service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+}
