@@ -3,13 +3,13 @@ terraform {
     organization = "hertz-tuning"
 
     workspaces {
-      name = "terraform-gcp-shared"
+      name = "gcp-shared"
     }
   }
 }
 
 provider "google" {
-  credentials = jsondecode(var.dev_gcp_sa_key)
+  credentials = var.dev_gcp_sa_key
   project = var.dev_gcp_project_id
   region  = var.region
 
