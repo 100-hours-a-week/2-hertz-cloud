@@ -36,3 +36,13 @@ variable "openvpn_admin_password" {
   description = "OpenVPN 관리자 비밀번호"
   type        = string
 }
+
+variable "ssh_private_key" {
+  description = "deploy 계정에 등록할 SSH 공개 키"
+  type        = string
+}
+variable "extra_startup_script" {
+  description = "추가 사용자 정의 startup script (예: OpenVPN 등)"
+  type        = string
+  default     = ""
+}

@@ -17,10 +17,19 @@ resource "google_compute_instance" "vm" {
     access_config {}
   }
 
-  metadata_startup_script = var.startup_script
+  metadata_startup_script = local.startup_script
 
   service_account {
     email  = var.service_account_email
     scopes = var.service_account_scopes
   }
+}
+
+locals {
+  startup_script = join("\n", [
+    templatefile("${path.module}/scripts/base-init.sh.tpl", {
+      deploy_ssh_public_key = var.deploy_ssh_public_key
+    }),
+    var.extra_startup_script
+  ])
 }

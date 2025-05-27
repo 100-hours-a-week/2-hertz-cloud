@@ -46,6 +46,20 @@ variable "service_account_email" {
   type        = string
 }
 
+variable "deploy_ssh_public_key" {
+  description = "deploy 계정에 등록할 SSH 공개 키"
+  type        = string
+  default     = ""
+}
+
+variable "extra_startup_script" {
+  description = "추가 사용자 정의 startup script (예: OpenVPN 등)"
+  type        = string
+  default     = ""
+}
+
+
+
 variable "service_account_scopes" {
   description = "서비스 계정 권한 범위"
   type        = list(string)

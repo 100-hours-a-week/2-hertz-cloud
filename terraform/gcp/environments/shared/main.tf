@@ -136,14 +136,19 @@ module "bastion_openvpn" {
   name                  = "openvpn"
   machine_type          = "e2-micro"
   zone                  = "asia-east1-a"
-  tags                  = ["openvpn","openvpn-console"]
   image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
   disk_size_gb          = 10
+  tags                  = ["openvpn", "openvpn-console", "allow-ssh-http"]  
+
   subnetwork            = module.network.subnets["${var.vpc_name}-public-a"].self_link
-   startup_script        = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
+ 
+  extra_startup_script = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
     admin_password = var.openvpn_admin_password
   })
 
-  service_account_email = var.default_sa_email
+  # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
+  deploy_ssh_public_key = var.ssh_private_key
+
+  service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 }
