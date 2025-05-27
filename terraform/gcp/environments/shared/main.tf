@@ -73,4 +73,39 @@ module "network" {
 }
 
 
+locals {
+  firewall_rules = [
+    {
+      name          = "ingress-public"
+      env           = var.env
+      direction     = "INGRESS"
+      priority      = 1000
+      protocol      = "tcp"
+      ports         = ["22", "80", "443"]
+      source_ranges = ["0.0.0.0/0"]
+      target_tags   = ["allow-ssh-http"]
+      description   = "Allow SSH/HTTP/HTTPS from anywhere"
+    },
+    {
+      name          = "internal-all"
+      env           = var.env
+      direction     = "INGRESS"
+      priority      = 1100
+      protocol      = "all"
+      ports         = []
+      source_ranges = [
+        for s in concat(local.public_subnets, local.private_subnets, local.nat_subnets) : s.cidr
+      ]
+      target_tags   = []
+      description   = "Allow internal traffic"
+    }
+  ]
+}
+
+module "firewall" {
+  source         = "../../modules/firewall"
+  vpc_name       = module.network.vpc_name
+  firewall_rules = local.firewall_rules
+}
+
 ###project 관련
