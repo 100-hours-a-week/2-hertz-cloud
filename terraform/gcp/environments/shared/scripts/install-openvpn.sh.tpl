@@ -16,67 +16,87 @@ fi
 echo "[INFO] 설정할 관리자 비밀번호: $CUSTOM_PASSWORD"
 
 # 설치 전 필수 패키지
-apt-get update -y
-apt-get install -y curl wget net-tools
+sudo apt-get update -y
+sudo apt-get install -y curl wget net-tools expect
 
 # OpenVPN Access Server 다운로드 및 설치
-wget https://as-repository.openvpn.net/as-repo-public.asc -qO /etc/apt/trusted.gpg.d/as-repository.asc
+sudo wget https://as-repository.openvpn.net/as-repo-public.asc -qO /etc/apt/trusted.gpg.d/as-repository.asc
 echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/as-repository.asc] http://as-repository.openvpn.net/as/debian jammy main" | sudo tee /etc/apt/sources.list.d/openvpn-as-repo.list
- apt update && apt -y install openvpn-as
-
+sudo apt update && sudo apt -y install openvpn-as
 
 # 서버 IP 추출
 SERVER_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
 echo "[INFO] Public IP: $SERVER_IP"
 
+# OpenVPN 초기화 자동화 expect 스크립트 생성
+sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
+#!/usr/bin/expect -f
 
-echo "OpenVPN Access Server 배치 모드 초기화 시작..."
-/usr/local/openvpn_as/bin/ovpn-init --batch \
-  --force \
-  --ec2 \
-  --local_auth \                  # ← ✅ 수정: =1 제거
-  --no_start \
-  --host=$${SERVER_IP} \
-  --iface=eth0 \
-  --admin_user=openvpn \
-  --admin_pw="$${CUSTOM_PASSWORD}" \
-  --license_agreement=yes \
-  --verb=3 \
-  --ca_key_type=secp384r1 \
-  --web_key_type=secp384r1 \
-  --reroute_gw=1 \
-  --reroute_dns=0 \
-  --private_subnets=1 \
-  --vpn_tcp_port=443 \
-  --cs_priv_port=943 \
-  --cs_pub_port=943
+set timeout -1
+set password "$env(CUSTOM_PASSWORD)"
+set activation_key ""
 
-echo "OpenVPN Access Server 배치 모드 초기화 완료"
+spawn sudo /usr/local/openvpn_as/bin/ovpn-init
+
+expect {
+    "Please enter 'DELETE' to delete existing configuration" {
+        send "DELETE\r"
+        exp_continue
+    }
+    "indicate your agreement" {
+        send "yes\r"
+    }
+}
+
+expect "Press ENTER for default" { send "\r" }
+expect "Please enter the option number*" { send "1\r" }
+expect "Press ENTER for default \\[secp384r1\\]:" { send "\r" }
+expect "Press ENTER for default \\[secp384r1\\]:" { send "\r" }
+expect "Press ENTER for default \\[943\\]:" { send "\r" }
+expect "Press ENTER for default \\[443\\]:" { send "\r" }
+expect "Press ENTER for default \\[yes\\]:" { send "\r" }
+expect "Press ENTER for default \\[yes\\]:" { send "no\r" }
+expect "Press ENTER for default \\[yes\\]:" { send "\r" }
+expect "Do you wish to login to the Admin UI as \"openvpn\"?" { send "\r" }
+expect "Type a password for the 'openvpn' account" { send "$password\r" }
+expect "Confirm the password for the 'openvpn' account:" { send "$password\r" }
+expect "specify your Activation key" { send "$activation_key\r" }
+expect eof
+EOF
+
+sudo chmod +x /root/auto-ovpn-init.expect
+sudo CUSTOM_PASSWORD="$CUSTOM_PASSWORD" /root/auto-ovpn-init.expect
 
 # 서비스 시작
-echo "OpenVPN 서비스 시작 중..."
-service openvpnas start
+sudo service openvpnas start
+
 # 서비스가 완전히 뜰 때까지 대기
 echo "OpenVPN 서비스가 시작될 때까지 대기 중..."
 for i in {1..30}; do
-    if netstat -tnlp | grep -q ':943'; then
+    if sudo netstat -tnlp | grep -q ':943'; then
         echo "OpenVPN admin port opened!"
         break
     fi
     sleep 1
 done
 
+# 관리자 비밀번호 재설정 보장
+sudo /usr/local/openvpn_as/scripts/sacli --user openvpn --new_pass "$CUSTOM_PASSWORD" SetLocalPassword
 
+# 외부 IP 또는 FQDN으로 설정
+sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.server.host" \
+                                   --value "$SERVER_IP" \
+                                   ConfigPut
 
-# 관리자 비밀번호 설정
-/usr/local/openvpn_as/scripts/sacli --user openvpn --new_pass "$CUSTOM_PASSWORD" SetLocalPassword
+# 설정 적용 및 서버 업데이트
+sudo /usr/local/openvpn_as/scripts/sacli ConfigQuery
+sudo /usr/local/openvpn_as/scripts/sacli ConfigPush
 
-
-# 서비스 시작
-service openvpnas restart
+# 서비스 재시작
+sudo service openvpnas restart
 
 # 정보 저장
-cat <<EOF > /root/openvpn-info.txt
+sudo tee /root/openvpn-info.txt > /dev/null <<EOF
 [OpenVPN Access Server 정보]
 
 관리자 UI: https://$SERVER_IP:943/admin
@@ -90,9 +110,13 @@ cat <<EOF > /root/openvpn-info.txt
 
 VPN 포트: UDP 1194
 웹 포트: TCP 443 (Client), TCP 943 (Admin)
-
 EOF
 
-chmod 600 /root/openvpn-info.txt
+sudo chmod 600 /root/openvpn-info.txt
+
+# 커널 포워딩 설정
+echo "시스템 최적화 설정 적용 중..."
+echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
 
 echo "[INFO] 설치 완료. 접속: https://$SERVER_IP:943/admin"
