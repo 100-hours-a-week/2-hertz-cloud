@@ -59,9 +59,15 @@ variable "extra_startup_script" {
 }
 
 
-
 variable "service_account_scopes" {
   description = "서비스 계정 권한 범위"
   type        = list(string)
   default     = ["https://www.googleapis.com/auth/cloud-platform"]
+}
+
+# modules/vm/variables.tf
+variable "enable_public_ip" {
+  description = "이 VM에 외부 IP를 할당할지 여부"
+  type        = bool
+  default     = false
 }

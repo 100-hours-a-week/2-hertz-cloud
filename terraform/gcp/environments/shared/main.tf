@@ -182,6 +182,5 @@ module "backend" {
     
     service_account_email  = var.default_sa_email
     service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-    enable_public_ip = false
-  
+
 }
