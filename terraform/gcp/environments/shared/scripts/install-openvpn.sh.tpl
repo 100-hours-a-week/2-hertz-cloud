@@ -32,24 +32,24 @@ echo "[INFO] Public IP: $SERVER_IP"
 
 echo "OpenVPN Access Server 배치 모드 초기화 시작..."
 /usr/local/openvpn_as/bin/ovpn-init --batch \
---force \
---ec2 \
---local_auth=1 \
---no_start \
---host=$${SERVER_IP} \
---iface=eth0 \
---admin_user=openvpn \
---admin_pw="$${CUSTOM_PASSWORD}" \
---license_agreement=yes \
---verb=3 \
---ca_key_type=secp384r1 \
---web_key_type=secp384r1 \
---reroute_gw=1 \
---reroute_dns=0 \
---private_subnets=1 \
---vpn_tcp_port=443 \
---cs_priv_port=943 \
---cs_pub_port=943
+  --force \
+  --ec2 \
+  --local_auth \                  # ← ✅ 수정: =1 제거
+  --no_start \
+  --host=$${SERVER_IP} \
+  --iface=eth0 \
+  --admin_user=openvpn \
+  --admin_pw="$${CUSTOM_PASSWORD}" \
+  --license_agreement=yes \
+  --verb=3 \
+  --ca_key_type=secp384r1 \
+  --web_key_type=secp384r1 \
+  --reroute_gw=1 \
+  --reroute_dns=0 \
+  --private_subnets=1 \
+  --vpn_tcp_port=443 \
+  --cs_priv_port=943 \
+  --cs_pub_port=943
 
 echo "OpenVPN Access Server 배치 모드 초기화 완료"
 
