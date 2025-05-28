@@ -15,7 +15,7 @@ resource "aws_route" "public" { # public 전용
   gateway_id             = var.igw_id
 }
 
-resource "aws_route" "private" { # private 전용
+resource "aws_route" "private" { # nat 전용
   count = var.is_public ? 0 : 1
 
   route_table_id         = aws_route_table.this.id

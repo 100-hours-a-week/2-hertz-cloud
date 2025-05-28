@@ -145,7 +145,7 @@ module "firewall" {
 module "bastion_openvpn" {
   source                = "../../modules/compute"
   name                  = "openvpn"
-  machine_type          = "e2-micro"
+  machine_type          = "e2-small"
   zone                  = "asia-east1-b"
   image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
   disk_size_gb          = 10

@@ -92,7 +92,6 @@ function generateRequestData() {
   
     responseTimeTrend.add(response.timings.duration);
     totalRequestCounter.add(1);
-  
     check(response, {
       'status is 200 or 201': (r) => r.status === 200 || r.status === 201,
       'status is 409 (conflict)': (r) => r.status === 409,
