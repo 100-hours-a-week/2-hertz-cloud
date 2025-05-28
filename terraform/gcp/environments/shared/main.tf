@@ -162,7 +162,7 @@ module "backend" {
     disk_size_gb          = 10
     tags                  = ["allow-ssh-http"]
     
-    subnetwork            = module.network.subnets["${var.vpc_name}-private-b"].self_link
+    subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
     
     # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
     deploy_ssh_public_key = var.ssh_private_key
