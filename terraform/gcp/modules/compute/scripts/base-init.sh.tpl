@@ -6,13 +6,6 @@ exec > >(tee -a /var/log/base-init.log) 2>&1
 
 echo "========== 기본 초기화 시작 =========="
 
-# SSH 서버 설치 및 활성화
-echo "[INFO] SSH 서버 설치 중..."
-apt-get update -y
-apt-get install -y openssh-server
-systemctl enable ssh
-systemctl restart ssh
-
 # deploy 사용자 생성 및 SSH 키 등록
 if id "deploy" &>/dev/null; then
   echo "[INFO] deploy 사용자 이미 존재함"
@@ -26,32 +19,20 @@ else
   chown -R deploy:deploy /home/deploy/.ssh
 fi
 
-# (선택) deploy에 제한 sudo 권한 부여
+# deploy 사용자에 제한 sudo 권한 부여 (docker / openvpnas 제어용)
 if ! grep -q "deploy" /etc/sudoers; then
   echo "deploy ALL=(ALL) NOPASSWD: /bin/systemctl * docker, /bin/systemctl * openvpnas, /bin/service openvpnas *" >> /etc/sudoers
 fi
 
-# Docker 설치
+# Docker 설치 (공식 스크립트 사용)
 echo "[INFO] Docker 설치 중..."
-apt-get install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release
+curl -fsSL https://get.docker.com -o get-docker.sh
+chmod +x get-docker.sh
+sh get-docker.sh
+rm -f get-docker.sh
 
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-apt-get update -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-systemctl enable docker
-systemctl restart docker
+# deploy 사용자에 docker 그룹 권한 부여
+usermod -aG docker deploy
 
 # AWS CLI 설치
 echo "[INFO] AWS CLI 설치 중..."
