@@ -103,13 +103,14 @@ jobs:
             if [[ "${{ env.DEPLOY_TYPE }}" == "docker" ]]; then
               echo "🚀 Docker 배포 시작..."
               cd /home/deploy
-              pm2 stop fastapi-ai
-
-              docker compose -f docker-compose-tuning.yml --env-file=.env up -d --build
+              pm2 stop ecosystem.config.js || true
+              sleep 5
+              docker compose --env-file .env up -d
             else
               echo "🚀 PM2 배포 시작..."
               cd /home/deploy
-              docker stop tuning
+              docker compose --env-file .env stop || true
+              sleep 10
               pm2 restart ecosystem.config.js 
               chmod +x ai_deploy.sh
               if [[ "${{ env.ROLLBACK }}" == "true" ]]; then
