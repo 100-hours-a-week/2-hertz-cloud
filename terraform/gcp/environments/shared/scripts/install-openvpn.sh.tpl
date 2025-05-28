@@ -29,44 +29,14 @@ SERVER_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal
 echo "[INFO] Public IP: $SERVER_IP"
 
 # OpenVPN 초기화 자동화 expect 스크립트 생성
-sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
+sudo tee /root/auto-ovpn-init.expect > /dev/null <<EOF
 #!/usr/bin/expect -f
 
 set timeout -1
-set password "$env(CUSTOM_PASSWORD)"
+set password "\$env(CUSTOM_PASSWORD)"
 set activation_key ""
 
-spawn sudo /usr/local/openvpn_as/bin/ovpn-init
-
-expect {
-    "Please enter 'DELETE' to delete existing configuration" {
-        send "DELETE\r"
-        exp_continue
-    }
-    "indicate your agreement" {
-        send "yes\r"
-    }
-}
-
-expect "Press ENTER for default" { send "\r" }
-expect "Please enter the option number*" { send "1\r" }
-expect "Press ENTER for default \\[secp384r1\\]:" { send "\r" }
-expect "Press ENTER for default \\[secp384r1\\]:" { send "\r" }
-expect "Press ENTER for default \\[943\\]:" { send "\r" }
-expect "Press ENTER for default \\[443\\]:" { send "\r" }
-expect "Press ENTER for default \\[yes\\]:" { send "\r" }
-expect "Press ENTER for default \\[yes\\]:" { send "no\r" }
-expect "Press ENTER for default \\[yes\\]:" { send "\r" }
-expect "Do you wish to login to the Admin UI as \"openvpn\"?" { send "\r" }
-expect "Type a password for the 'openvpn' account" { send "$password\r" }
-expect "Confirm the password for the 'openvpn' account:" { send "$password\r" }
-expect "specify your Activation key" { send "$activation_key\r" }
-expect eof
-EOF
-
-sudo chmod +x /root/auto-ovpn-init.expect
-sudo CUSTOM_PASSWORD="$CUSTOM_PASSWORD" /root/auto-ovpn-init.expect
-
+sudo /usr/local/openvpn_as/bin/ovpn-init --batch
 # 서비스 시작
 sudo service openvpnas start
 

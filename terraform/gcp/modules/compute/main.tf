@@ -13,8 +13,13 @@ resource "google_compute_instance" "vm" {
   }
 
   network_interface {
-    subnetwork    = var.subnetwork
-    access_config {}
+    subnetwork = var.subnetwork
+
+    # enable_public_ip 가 true일 때만 access_config 블록을 생성
+    dynamic "access_config" {
+      for_each = var.enable_public_ip ? [1] : []
+      content {}
+    }
   }
 
   metadata_startup_script = local.startup_script
