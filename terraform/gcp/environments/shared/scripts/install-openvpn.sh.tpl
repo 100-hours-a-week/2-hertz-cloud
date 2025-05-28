@@ -59,6 +59,16 @@ expect "Do you wish to login to the Admin UI as \"openvpn\"?" { send "\r" }
 expect "Type a password for the 'openvpn' account"          { send "$password\r" }
 expect "Confirm the password for the 'openvpn' account:"    { send "$password\r" }
 expect "specify your Activation key"                        { send "$activation_key\r" }
+
+
+expect eof
+EOF
+
+sudo chmod +x /root/auto-ovpn-init.expect
+sudo CUSTOM_PASSWORD="$CUSTOM_PASSWORD" /root/auto-ovpn-init.expect
+
+
+
 # 2. 서비스 시작
 sudo service openvpnas start
 
