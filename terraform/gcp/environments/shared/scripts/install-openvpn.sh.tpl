@@ -14,19 +14,23 @@ if [ -z "$CUSTOM_PASSWORD" ]; then
 fi
 echo "[INFO] 설정할 관리자 비밀번호: $CUSTOM_PASSWORD"
 
-# 패키지 설치
-sudo apt-get update -y
-sudo apt-get install -y curl wget net-tools expect
-
-# OpenVPN Access Server 다운로드 및 설치
-sudo wget https://as-repository.openvpn.net/as-repo-public.asc -qO /etc/apt/trusted.gpg.d/as-repository.asc
-echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/as-repository.asc] http://as-repository.openvpn.net/as/debian jammy main" | sudo tee /etc/apt/sources.list.d/openvpn-as-repo.list
-sudo apt update && sudo apt -y install openvpn-as
 
 # 서버 IP 추출
 SERVER_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
 echo "[INFO] Public IP: $SERVER_IP"
 
+
+
+sudo apt-get install -y curl wget net-tools expect
+
+# OpenVPN Access Server 다운로드 및 설치
+sudo wget https://as-repository.openvpn.net/as-repo-public.asc -qO /etc/apt/trusted.gpg.d/as-repository.asc
+echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/as-repository.asc] http://as-repository.openvpn.net/as/debian jammy main" | sudo tee /etc/apt/sources.list.d/openvpn-as-repo.list
+sudo apt -y install openvpn-as
+
+
+# OpenVPN 초기화 자동화 expect 스크립트 생성
+sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
 #!/usr/bin/expect -f
 
 set timeout -1
