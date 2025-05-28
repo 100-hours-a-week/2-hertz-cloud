@@ -154,7 +154,7 @@ module "bastion_openvpn" {
   subnetwork            = module.network.subnets["${var.vpc_name}-public-b"].self_link
  
   extra_startup_script = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
-    admin_password = var.openvpn_admin_password
+    openvpn_admin_password = var.openvpn_admin_password
   })
 
   # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
