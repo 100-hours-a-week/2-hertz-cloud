@@ -120,6 +120,17 @@ locals {
     source_ranges = ["0.0.0.0/0"]
     target_tags   = ["openvpn"]
     description   = "Allow OpenVPN admin and client web access"
+},
+{
+  name          = "ssh-from-vpn"
+  env           = var.env
+  direction     = "INGRESS"
+  priority      = 1003
+  protocol      = "tcp"
+  ports         = ["22"]
+  source_ranges = var.vpn_client_cidr_blocks 
+  target_tags   = ["allow-vpn-ssh"]
+  description   = "Allow SSH from VPN clients"
 }
   ]
 }
@@ -160,7 +171,7 @@ module "backend" {
     zone                  = "asia-east1-b"
     image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
     disk_size_gb          = 10
-    tags                  = ["allow-ssh-http"]
+    tags                  = ["ssh-from-vpn"]
     
     subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
     

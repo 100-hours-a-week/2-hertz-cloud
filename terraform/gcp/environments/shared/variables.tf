@@ -46,3 +46,8 @@ variable "extra_startup_script" {
   type        = string
   default     = ""
 }
+
+variable "vpn_client_cidr_blocks" {
+  description = "OpenVPN 서버 또는 클라이언트 IP 대역"
+  type        = list(string)
+}
