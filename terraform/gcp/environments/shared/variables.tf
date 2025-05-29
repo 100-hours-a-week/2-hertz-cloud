@@ -51,3 +51,10 @@ variable "vpn_client_cidr_blocks" {
   description = "OpenVPN 서버 또는 클라이언트 IP 대역"
   type        = list(string)
 }
+
+# variables.tf
+variable "vpn_private_networks" {
+  description = "VPN을 통해 접근 가능한 내부망(서브넷) CIDR 목록"
+  type        = list(string)
+  default     = []
+}
