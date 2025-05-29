@@ -36,8 +36,7 @@ sudo apt update && sudo apt -y install openvpn-as
 sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
 #!/usr/bin/expect -f
 
-set timeout 30
-set password "Tuningzzang@123"
+set password "$env(CUSTOM_PASSWORD)"
 set activation_key ""
 
 # 디버그 모드 활성화 (문제 해결용)
@@ -178,10 +177,6 @@ expect {
     }
     eof {
         puts "\n=== 설정 프로세스 종료 ==="
-    }
-    timeout {
-        puts "\n=== 타임아웃 발생 - 수동으로 확인 필요 ==="
-        exit 1
     }
 }
 
