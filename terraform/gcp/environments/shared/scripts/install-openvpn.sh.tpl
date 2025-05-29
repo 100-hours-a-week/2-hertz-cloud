@@ -131,20 +131,20 @@ expect {
 # 🔧 패스워드 설정 부분 수정
 expect {
     -re "Type a password.*if left blank.*:" {
-        send "$password\r"
+        send "\r"
     }
     -re "Type a password.*:" {
-        send "$password\r"
+        send "\r"
     }
 }
 
 # 🔧 패스워드 확인 부분 수정
 expect {
     -re "Confirm.*password.*:" {
-        send "$password\r"
+        send  "\r"
     }
     -re ".*Confirm.*:" {
-        send "$password\r"
+        send  "\r"
     }
 }
 
