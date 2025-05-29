@@ -36,7 +36,6 @@ sudo apt update && sudo apt -y install openvpn-as
 sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
 #!/usr/bin/expect -f
 
-set password "$env(CUSTOM_PASSWORD)"
 set activation_key ""
 
 # 디버그 모드 활성화 (문제 해결용)
