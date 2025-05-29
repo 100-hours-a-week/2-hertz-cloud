@@ -201,10 +201,34 @@ done
 # 4. 관리자 비밀번호 재설정 보장
 sudo /usr/local/openvpn_as/scripts/sacli --user openvpn --new_pass "$CUSTOM_PASSWORD" SetLocalPassword
 
-# 5. 외부 IP로 접속 설정
-sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.server.host" --value "$SERVER_IP" ConfigPut
+# 간단한 수정 스크립트 생성 및 실행
+sudo tee /root/fix-openvpn-ip.sh > /dev/null << 'EOF'
+#!/bin/bash
+EXTERNAL_IP=$(curl -s ifconfig.me)
+echo "🔧 외부 IP: $EXTERNAL_IP 로 설정 중..."
+
+sudo /usr/local/openvpn_as/scripts/sacli --key "host.name" --value "$EXTERNAL_IP" ConfigPut
+sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.daemon.0.listen.ip" --value "all" ConfigPut
+sudo /usr/local/openvpn_as/scripts/sacli --key "admin_ui.https.ip_address" --value "all" ConfigPut
+sudo /usr/local/openvpn_as/scripts/sacli --key "cs.https.ip_address" --value "all" ConfigPut
 sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.server.reroute_gw" --value "false" ConfigPut
-sudo /usr/local/openvpn_as/scripts/sacli --user openvpn GetUserLogin > /home/deploy/openvpn-user.ovpn
+sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.server.reroute_dns" --value "false" ConfigPut
+sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.client.routing.reroute_gw" --value "false" ConfigPut
+sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.client.routing.reroute_dns" --value "false" ConfigPut
+
+sudo ufw allow 1194/udp 2>/dev/null
+sudo ufw allow 943/tcp 2>/dev/null
+
+sudo /usr/local/openvpn_as/scripts/sacli start
+
+echo "✅ 완료! Admin UI: https://$EXTERNAL_IP:943/admin"
+EOF
+
+sudo chmod +x /root/fix-openvpn-ip.sh
+sudo /root/fix-openvpn-ip.sh
+
+
+
 # 6. 서비스 재시작
 sudo service openvpnas restart
 
