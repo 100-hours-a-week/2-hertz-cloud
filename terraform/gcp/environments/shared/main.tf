@@ -140,6 +140,9 @@ module "firewall" {
   vpc_name       = module.network.vpc_name
   firewall_rules = local.firewall_rules
 }
+
+
+
 locals {
   vpn_private_networks = concat(
     [for s in local.private_subnets : s.cidr],
@@ -159,10 +162,9 @@ module "bastion_openvpn" {
   subnetwork            = module.network.subnets["${var.vpc_name}-public-b"].self_link
  
   extra_startup_script = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
-    openvpn_admin_password = var.openvpn_admin_password,
-    vpn_private_networks   = join(",", local.vpn_private_networks)
-  })
-
+  openvpn_admin_password = var.openvpn_admin_password,
+  vpn_private_networks   = join(",", local.vpn_private_networks)
+})
   # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
   deploy_ssh_public_key = var.ssh_private_key
 

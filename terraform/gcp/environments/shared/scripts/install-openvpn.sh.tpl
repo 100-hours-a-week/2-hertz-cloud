@@ -205,7 +205,7 @@ sudo /usr/local/openvpn_as/scripts/sacli --user openvpn --new_pass "$CUSTOM_PASS
 sudo tee /root/fix-openvpn-ip.sh > /dev/null << 'EOF'
 #!/bin/bash
 EXTERNAL_IP=$(curl -s ifconfig.me)
-echo "🔧 외부 IP: $EXTERNAL_IP 로 설정 중..."
+echo "[INFO] 외부 IP: $EXTERNAL_IP 로 설정 중..."
 
 sudo /usr/local/openvpn_as/scripts/sacli --key "host.name" --value "$EXTERNAL_IP" ConfigPut
 sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.daemon.0.listen.ip" --value "all" ConfigPut
@@ -221,17 +221,15 @@ sudo ufw allow 943/tcp 2>/dev/null
 
 sudo /usr/local/openvpn_as/scripts/sacli start
 
-echo "✅ 완료! Admin UI: https://$EXTERNAL_IP:943/admin"
+echo "[INFO] 완료! Admin UI: https://$EXTERNAL_IP:943/admin"
 EOF
 
 sudo chmod +x /root/fix-openvpn-ip.sh
 sudo /root/fix-openvpn-ip.sh
 
-# 내부망(서브넷) 자동 라우팅 등록
 VPN_PRIVATE_NETWORKS="${vpn_private_networks:-""}" 
 IFS=',' read -ra SUBNETS <<< "$VPN_PRIVATE_NETWORKS"
 
-echo "[INFO] OpenVPN 라우팅에 아래 CIDR들을 추가합니다:"
 for i in "${!SUBNETS[@]}"; do
     CIDR="${SUBNETS[$i]}"
     if [[ -n "$CIDR" ]]; then
