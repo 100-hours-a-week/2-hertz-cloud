@@ -35,6 +35,15 @@ sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EXPECTSCRIPT'
 
 spawn sudo /usr/local/openvpn_as/bin/ovpn-init
 
+sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
+#!/usr/bin/expect -f
+set activation_key ""
+# 디버그 모드 활성화 (문제 해결용)
+# exp_internal 1
+spawn sudo /usr/local/openvpn_as/bin/ovpn-init
+# 기존 설정 삭제 여부 (필요시)
+
+
 expect {
     "Please enter 'DELETE' to delete existing configuration" {
         send "DELETE\r"
@@ -44,69 +53,118 @@ expect {
         send "yes\r"
     }
 }
-
-expect -re "Press ENTER for default.*yes.*:" {
-    send "\r"
+# Primary Access Server 노드 설정
+expect {
+    -re "Press ENTER for default.*yes.*:" {
+        send "\r"
+    }
 }
-
-expect -re "Please enter the option number.*>" {
-    send "1\r"
+# 네트워크 인터페이스 선택
+expect {
+    -re "Please enter the option number.*>" {
+        send "1\r"
+    }
 }
-
-expect -re "Press ENTER for default.*secp384r1.*:" {
-    send "\r"
+# OpenVPN CA 암호화 알고리즘
+expect {
+    -re "Press ENTER for default.*secp384r1.*:" {
+        send "\r"
+    }
 }
-
-expect -re "Press ENTER for default.*secp384r1.*:" {
-    send "\r"
+# 웹 인증서 암호화 알고리즘
+expect {
+    -re "Press ENTER for default.*secp384r1.*:" {
+        send "\r"
+    }
 }
-
-expect -re "Press ENTER for default.*943.*:" {
-    send "\r"
+# Admin Web UI 포트
+expect {
+    -re "Press ENTER for default.*943.*:" {
+        send "\r"
+    }
 }
-
-expect -re "Press ENTER for default.*443.*:" {
-    send "\r"
+# OpenVPN Daemon TCP 포트
+expect {
+    -re "Press ENTER for default.*443.*:" {
+        send "\r"
+    }
 }
-
+# 클라이언트 트래픽 VPN 라우팅 - NO 답변
 expect "Should client traffic be routed by default through the VPN?"
-expect -re "Press ENTER for default.*yes.*:" {
-    send "no\r"
+expect {
+    -re "Press ENTER for default.*yes.*:" {
+        send "no\r"
+    }
 }
-
+# DNS 트래픽 VPN 라우팅 - NO 답변
 expect "Should client DNS traffic be routed by default through the VPN?"
-expect -re "Press ENTER for default.*yes.*:" {
-    send "no\r"
+expect {
+    -re "Press ENTER for default.*yes.*:" {
+        send "no\r"
+    }
 }
-
-expect "Should private subnets be accessible to clients by default?" {
-    expect -re "Press ENTER for default.*yes.*:"
-    send "\r"
+# Private 서브넷 접근 허용
+expect {
+    "Should private subnets be accessible to clients by default?" {
+        expect -re "Press ENTER for default.*yes.*:"
+        send "\r"
+    }
 }
-
-expect "Do you wish to login to the Admin UI as \"openvpn\"?" {
-    expect -re "Press ENTER for default.*yes.*:"
-    send "\r"
+# Admin UI 로그인 계정 설정
+expect {
+    "Do you wish to login to the Admin UI as \"openvpn\"?" {
+        expect -re "Press ENTER for default.*yes.*:"
+        send "\r"
+    }
 }
-
-expect -re "Type a password.*:" {
-    send "\r"
+# 🔧 패스워드 설정 부분 수정
+expect {
+    -re "Type a password.*if left blank.*:" {
+        send "\r"
+    }
+    -re "Type a password.*:" {
+        send "\r"
+    }
 }
-
-expect -re ".*Activation key.*:" {
-    send "\r"
+# 🔧 패스워드 확인 부분 수정
+expect {
+    -re "Confirm.*password.*:" {
+        send  "\r"
+    }
+    -re ".*Confirm.*:" {
+        send  "\r"
+    }
 }
-
+# Activation Key 처리
+expect {
+    -re "specify your Activation key.*:" {
+        if {$activation_key eq ""} {
+            send "\r"
+        } else {
+            send "$activation_key\r"
+        }
+    }
+    -re "Activation key.*:" {
+        if {$activation_key eq ""} {
+            send "\r"
+        } else {
+            send "$activation_key\r"
+        }
+    }
+}
+# 설정 완료 대기
 expect {
     -re "successfully installed" {
-        puts "\n=== Installation completed ==="
+        puts "\n=== OpenVPN Access Server 설치 완료! ==="
+    }
+    -re "configuration complete" {
+        puts "\n=== 설정 완료! ==="
     }
     eof {
-        puts "\n=== Process finished ==="
+        puts "\n=== 설정 프로세스 종료 ==="
     }
-
 }
-EXPECTSCRIPT
+EOF
 
 sudo chmod +x /root/auto-ovpn-init.expect
 echo "[INFO] Running OpenVPN initialization..."
