@@ -30,15 +30,20 @@ sudo apt update && sudo apt -y install openvpn-as
 
 
 # OpenVPN 초기화 자동화 expect 스크립트 생성
+#!/bin/bash
+
+# 수정된 OpenVPN Access Server 자동 초기화 스크립트
 sudo tee /root/auto-ovpn-init.expect > /dev/null << 'EOF'
 #!/usr/bin/expect -f
 
-set timeout -1
-set password "$env(CUSTOM_PASSWORD)"
+set timeout 30
+set password "Tuningzzang@123"
 set activation_key ""
 
-spawn sudo /usr/local/openvpn_as/bin/ovpn-init
+# 디버그 모드 활성화 (문제 해결용)
+# exp_internal 1
 
+spawn sudo /usr/local/openvpn_as/bin/ovpn-init
 
 # 기존 설정 삭제 여부 (필요시)
 expect {
@@ -51,65 +56,65 @@ expect {
     }
 }
 
-# Primary Access Server 노드 설정 (yes - 기본값)
+# Primary Access Server 노드 설정
 expect {
     -re "Press ENTER for default.*yes.*:" {
         send "\r"
     }
 }
 
-# 네트워크 인터페이스 선택 (1 - 모든 인터페이스)
+# 네트워크 인터페이스 선택
 expect {
-    -re "Please enter the option number.*1.*2.*>" {
+    -re "Please enter the option number.*>" {
         send "1\r"
     }
 }
 
-# OpenVPN CA 암호화 알고리즘 (secp384r1 - 기본값)
+# OpenVPN CA 암호화 알고리즘
 expect {
     -re "Press ENTER for default.*secp384r1.*:" {
         send "\r"
     }
 }
 
-# 웹 인증서 암호화 알고리즘 (secp384r1 - 기본값)
+# 웹 인증서 암호화 알고리즘
 expect {
     -re "Press ENTER for default.*secp384r1.*:" {
         send "\r"
     }
 }
 
-# Admin Web UI 포트 (943 - 기본값)
+# Admin Web UI 포트
 expect {
     -re "Press ENTER for default.*943.*:" {
         send "\r"
     }
 }
 
-# OpenVPN Daemon TCP 포트 (443 - 기본값)
+# OpenVPN Daemon TCP 포트
 expect {
     -re "Press ENTER for default.*443.*:" {
         send "\r"
     }
 }
 
-# ⭐ 첫 번째 "no" 답변: 클라이언트 트래픽 VPN 라우팅
+# 클라이언트 트래픽 VPN 라우팅 - NO 답변
+expect "Should client traffic be routed by default through the VPN?"
 expect {
-    "Should client traffic be routed by default through the VPN?" {
-        expect -re "Press ENTER for default.*yes.*:"
+    -re "Press ENTER for default.*yes.*:" {
         send "no\r"
     }
 }
 
-# ⭐ 두 번째 "no" 답변: 클라이언트 DNS 트래픽 VPN 라우팅
+# DNS 트래픽 VPN 라우팅 - NO 답변
+expect "Should client DNS traffic be routed by default through the VPN?"
 expect {
-    "Should client DNS traffic be routed by default through the VPN?" {
-        expect -re "Press ENTER for default.*yes.*:"
+    -re "Press ENTER for default.*yes.*:" {
         send "no\r"
     }
 }
 
-# Private 서브넷 접근 허용 (yes - 기본값)
+# Private 서브넷 접근 허용
 expect {
     "Should private subnets be accessible to clients by default?" {
         expect -re "Press ENTER for default.*yes.*:"
@@ -117,7 +122,7 @@ expect {
     }
 }
 
-# Admin UI 로그인 계정 설정 (openvpn - 기본값)
+# Admin UI 로그인 계정 설정
 expect {
     "Do you wish to login to the Admin UI as \"openvpn\"?" {
         expect -re "Press ENTER for default.*yes.*:"
@@ -125,21 +130,27 @@ expect {
     }
 }
 
-# 패스워드 설정
+# 🔧 패스워드 설정 부분 수정
 expect {
-    -re "Type a password for the 'openvpn' account.*:" {
+    -re "Type a password.*if left blank.*:" {
+        send "$password\r"
+    }
+    -re "Type a password.*:" {
         send "$password\r"
     }
 }
 
-# 패스워드 확인
+# 🔧 패스워드 확인 부분 수정
 expect {
-    -re "Confirm password.*:" {
+    -re "Confirm.*password.*:" {
+        send "$password\r"
+    }
+    -re ".*Confirm.*:" {
         send "$password\r"
     }
 }
 
-# Activation Key (비어있으면 엔터)
+# Activation Key 처리
 expect {
     -re "specify your Activation key.*:" {
         if {$activation_key eq ""} {
@@ -148,18 +159,28 @@ expect {
             send "$activation_key\r"
         }
     }
+    -re "Activation key.*:" {
+        if {$activation_key eq ""} {
+            send "\r"
+        } else {
+            send "$activation_key\r"
+        }
+    }
 }
 
-# 모든 설정 완료 대기
+# 설정 완료 대기
 expect {
-    -re "Access Server has been successfully installed" {
-        puts "OpenVPN Access Server 설치 및 설정 완료!"
+    -re "successfully installed" {
+        puts "\n=== OpenVPN Access Server 설치 완료! ==="
+    }
+    -re "configuration complete" {
+        puts "\n=== 설정 완료! ==="
     }
     eof {
-        puts "설정 프로세스 종료"
+        puts "\n=== 설정 프로세스 종료 ==="
     }
     timeout {
-        puts "설정 중 타임아웃 발생"
+        puts "\n=== 타임아웃 발생 - 수동으로 확인 필요 ==="
         exit 1
     }
 }
@@ -167,8 +188,7 @@ expect {
 EOF
 
 sudo chmod +x /root/auto-ovpn-init.expect
-sudo CUSTOM_PASSWORD="$CUSTOM_PASSWORD" /root/auto-ovpn-init.expect
-
+sudo /root/auto-ovpn-init.expect
 
 
 # 2. 서비스 시작
