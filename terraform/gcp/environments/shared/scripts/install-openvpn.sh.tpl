@@ -228,15 +228,18 @@ sudo chmod +x /root/fix-openvpn-ip.sh
 sudo /root/fix-openvpn-ip.sh
 
 # 내부망(서브넷) 자동 라우팅 등록
-VPN_PRIVATE_NETWORKS="${vpn_private_networks:-""}"
+VPN_PRIVATE_NETWORKS="${vpn_private_networks:-""}" 
 IFS=',' read -ra SUBNETS <<< "$VPN_PRIVATE_NETWORKS"
 
+echo "[INFO] OpenVPN 라우팅에 아래 CIDR들을 추가합니다:"
 for i in "${!SUBNETS[@]}"; do
     CIDR="${SUBNETS[$i]}"
     if [[ -n "$CIDR" ]]; then
+        echo "  - $CIDR"
         sudo /usr/local/openvpn_as/scripts/sacli --key "vpn.server.routing.private_network.${i}" --value "$CIDR" ConfigPut
     fi
 done
+
 
 # 6. 서비스 재시작
 sudo service openvpnas restart
