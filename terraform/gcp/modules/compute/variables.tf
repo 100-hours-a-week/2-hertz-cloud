@@ -71,3 +71,8 @@ variable "enable_public_ip" {
   type        = bool
   default     = false
 }
+
+variable "static_ip" {
+  type    = string
+  default = ""
+}

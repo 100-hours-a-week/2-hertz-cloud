@@ -39,10 +39,3 @@ variable "nat_subnets" {
   }))
   default = []
 }
-
-variable "prevent_destroy" {
-  type    = bool
-  default = false
-  description = "If true, prevents the destruction of the network resources. Useful for production environments."
-  
-}
