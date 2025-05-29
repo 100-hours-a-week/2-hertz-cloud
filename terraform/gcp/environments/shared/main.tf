@@ -150,6 +150,11 @@ locals {
   )
 }
 
+resource "google_compute_address" "openvpn_static_ip" {
+  name = "openvpn-static-ip"
+  region = var.region
+}
+
 module "bastion_openvpn" {
   source                = "../../modules/compute"
   name                  = "openvpn"
@@ -159,8 +164,11 @@ module "bastion_openvpn" {
   disk_size_gb          = 10
   tags                  = ["openvpn", "openvpn-console", "allow-ssh-http"]  
 
+  #네트워크
   subnetwork            = module.network.subnets["${var.vpc_name}-public-b"].self_link
- 
+  enable_public_ip = true
+  static_ip = google_compute_address.openvpn_static_ip.address
+  #user_data
   extra_startup_script = templatefile("${path.module}/scripts/install-openvpn.sh.tpl", {
   openvpn_admin_password = var.openvpn_admin_password,
   vpn_private_networks   = join(",", local.vpn_private_networks)
@@ -170,8 +178,6 @@ module "bastion_openvpn" {
 
   service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-
-  enable_public_ip = true
 }
 
 module "backend" {
