@@ -62,7 +62,7 @@ locals {
   ]
 }
 
-module "network" {
+module "shared_network" {
   source           = "../../modules/network"
   project_id       = var.dev_gcp_project_id
   region           = var.region
@@ -70,6 +70,7 @@ module "network" {
   public_subnets   = local.public_subnets
   private_subnets  = local.private_subnets
   nat_subnets      = local.nat_subnets
+  prevent_destroy = true
 }
 
 
@@ -153,6 +154,9 @@ locals {
 resource "google_compute_address" "openvpn_static_ip" {
   name = "openvpn-static-ip"
   region = var.region
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 module "bastion_openvpn" {
@@ -178,6 +182,7 @@ module "bastion_openvpn" {
 
   service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  prevent_destroy        = true
 }
 
 module "backend" {
@@ -196,5 +201,8 @@ module "backend" {
     
     service_account_email  = var.default_sa_email
     service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    
+    
+    prevent_destroy        = false
 
 }
