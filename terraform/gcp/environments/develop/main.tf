@@ -93,7 +93,7 @@ module "asg" {
   region            = var.region
   subnet_self_link  = var.subnet_self_link
   startup_tpl       = templatefile(
-  "${path.module}/startup.sh.tpl",
+  "${path.module}/scripts/vm-install.sh.tpl",
   { 
     
     deploy_ssh_public_key = var.ssh_private_key, # deploy 계정의 SSH 공개키
