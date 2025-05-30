@@ -7,7 +7,6 @@ terraform {
   }
 }
 
-
 # develop/main.tf
 data "terraform_remote_state" "shared" {
   backend = "remote"
@@ -19,15 +18,12 @@ data "terraform_remote_state" "shared" {
   }
 }
 
-
 provider "google" {
   credentials = var.dev_gcp_sa_key
   project = var.dev_gcp_project_id
   region  = var.region
 
 }
-
-
 
 module "backend" {
     source                = "../../modules/compute"
@@ -53,7 +49,7 @@ module "backend" {
 resource "google_compute_router" "router" {
   name    = "${var.vpc_name}-router"
   region  = var.region
-  network = google_compute_network.vpc.name
+   network = data.terraform_remote_state.shared.outputs.vpc_self_link
 }
 
 # 고정 외부 IP (Cloud NAT용)
