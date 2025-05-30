@@ -79,3 +79,10 @@ resource "google_compute_router_nat" "nat" {
 locals {
   nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_subnet_info
 }
+
+module "hc" {
+  source        = "./modules/health-check"
+  name          = "app-hc"
+  port          = 8080
+  request_path  = "/health"
+}
