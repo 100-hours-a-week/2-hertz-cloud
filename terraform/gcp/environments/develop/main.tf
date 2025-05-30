@@ -7,7 +7,6 @@ terraform {
   }
 }
 
-
 # develop/main.tf
 data "terraform_remote_state" "shared" {
   backend = "remote"
@@ -19,15 +18,12 @@ data "terraform_remote_state" "shared" {
   }
 }
 
-
 provider "google" {
   credentials = var.dev_gcp_sa_key
   project = var.dev_gcp_project_id
   region  = var.region
 
 }
-
-
 
 module "backend" {
     source                = "../../modules/compute"
