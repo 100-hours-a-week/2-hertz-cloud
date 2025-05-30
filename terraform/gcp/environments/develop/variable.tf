@@ -43,10 +43,34 @@ variable "extra_startup_script" {
   default     = ""
 }
 
+variable "docker_image" {
+  description = "Docker 이미지 이름 (예: OpenVPN)"
+  type        = string
 
-# variables.tf
-variable "vpn_private_networks" {
-  description = "VPN을 통해 접근 가능한 내부망(서브넷) CIDR 목록"
-  type        = list(string)
-  default     = []
+}
+
+variable "subnet_self_link" {
+  description = "서브넷의 self link"
+  type        = string
+  default     = ""
+}
+
+variable "use_ecr" {
+  type    = bool
+  default = false
+}
+
+variable "aws_region" {
+  type    = string
+  default = ""
+}
+
+variable "aws_access_key_id" {
+  type    = string
+  default = ""
+}
+
+variable "aws_secret_access_key" {
+  type    = string
+  default = ""
 }

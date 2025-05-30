@@ -86,3 +86,24 @@ module "hc" {
   port          = 8080
   request_path  = "/health"
 }
+
+module "asg" {
+  source            = "../../modules/mig-asg"
+  name              = "tuning-backend"
+  region            = var.region
+  subnet_self_link  = var.subnet_self_link
+  startup_tpl       = templatefile(
+  "${path.module}/scripts/vm-install.sh.tpl",
+  { 
+    
+    deploy_ssh_public_key = var.ssh_private_key, # deploy 계정의 SSH 공개키
+    
+    image               = var.docker_image              # 필수
+    use_ecr             = true                   # true/false
+    aws_region          = var.aws_region                # optional
+    aws_access_key_id   = var.aws_access_key_id         # optional
+    aws_secret_access_key = var.aws_secret_access_key   # optional
+  }
+  )
+  health_check      = module.hc.self_link
+}
