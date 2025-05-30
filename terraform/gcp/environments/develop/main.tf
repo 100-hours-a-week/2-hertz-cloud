@@ -81,7 +81,7 @@ locals {
 }
 
 module "hc" {
-  source        = "./modules/health-check"
+  source        = "../../modules/health-check"
   name          = "app-hc"
   port          = 8080
   request_path  = "/health"
