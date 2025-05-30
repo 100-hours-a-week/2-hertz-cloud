@@ -16,7 +16,7 @@ output "firewall_rules" {
 
 # shared/output.tf
 output "nat_b_subnet_self_link" {
-  value = google_compute_subnetwork.shared_subnets["nat-b"].self_link
+  value = google_compute_subnetwork.shared_subnets["${var.vpc_name}-nat-b"].self_link
 }
 
 output "nat_subnet_info" {
