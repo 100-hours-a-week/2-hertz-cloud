@@ -33,8 +33,9 @@ resource "google_compute_region_instance_group_manager" "this" {
   }
 }
 
-resource "google_compute_autoscaler" "this" {
+resource "google_compute_region_autoscaler" "this" {
   name   = "${var.name}-as"
+  region = var.region
   target = google_compute_region_instance_group_manager.this.id
 
   autoscaling_policy {
