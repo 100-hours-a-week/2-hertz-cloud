@@ -4,18 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: '중지할 인스턴스 선택'
+        description: "중지할 인스턴스 선택"
         required: true
-        default: 'BE'
+        default: "BE"
         type: choice
         options:
-          - 'BE'
-          - 'AI'
+          - "BE"
+          - "AI"
 
 env:
   PROJECT_ID: ${{ secrets.PROD_GCP_PROJECT_ID }}
   PROJECT_ID_DEV: ${{ secrets.DEV_GCP_PROJECT_ID }}
   ZONE: ${{ secrets.GCP_ZONE }}
+  PROD_ZONE_AI: ${{ secrets.PROD_GCP_ZONE_AI }}
+  DEV_ZONE_AI: ${{ secrets.DEV_GCP_ZONE_AI }}
   PROD_INSTANCE: ${{ secrets.PROD_GCP_INSTANCE }}
   DEV_INSTANCE: ${{ secrets.DEV_GCP_INSTANCE }}
   PROD_INSTANCE_AI: ${{ secrets.PROD_GCP_INSTANCE_AI }}
@@ -38,16 +40,20 @@ jobs:
             echo "PROJECT_ID=${{ env.PROJECT_ID }}" >> $GITHUB_ENV
             if [[ "$TARGET" == "AI" ]]; then
               echo "INSTANCE=${{ env.PROD_INSTANCE_AI }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.PROD_ZONE_AI }}" >> $GITHUB_ENV
             else
               echo "INSTANCE=${{ env.PROD_INSTANCE }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
             fi
           else
             echo "ENV=develop" >> $GITHUB_ENV
             echo "PROJECT_ID=${{ env.PROJECT_ID_DEV }}" >> $GITHUB_ENV
             if [[ "$TARGET" == "AI" ]]; then
               echo "INSTANCE=${{ env.DEV_INSTANCE_AI }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.DEV_ZONE_AI }}" >> $GITHUB_ENV
             else
               echo "INSTANCE=${{ env.DEV_INSTANCE }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
             fi
           fi
 
@@ -79,10 +85,18 @@ jobs:
             echo "ℹ️ 중지 생략: 현재 상태는 '$STATUS'"
           fi
 
-      - name: Send notification
+      - name: Send notification Success
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{\"content\": \"🛑 [GCP 인스턴스 중지 완료] **${{ env.ENV }}** - 대상: ${{ env.TARGET }} (브랜치: \`${{ env.BRANCH }}\`)\"}" \
                ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+
+      - name: Send notification failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"❌ [GCP 인스턴스 중지 실패] **${{ env.ENV }}** - 대상: ${{ env.TARGET }} (브랜치: \`${{ env.BRANCH }}\`)\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}ㄱ
