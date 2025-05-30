@@ -10,9 +10,6 @@ variable "subnet_self_link" {
   type = string
 }
 
-variable "docker_image" {
-  type = string
-}
 
 variable "startup_tpl" {
   type = string
