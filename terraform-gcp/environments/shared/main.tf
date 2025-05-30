@@ -14,28 +14,6 @@ provider "google" {
 }
 
 
-module "network" {
-  source           = "../../modules/network"
-  project_id       = var.dev_gcp_project_id
-  region           = var.region
-  vpc_name         = var.vpc_name
-  public_subnets   = local.public_subnets
-  private_subnets  = local.private_subnets
-  nat_subnets      = local.nat_subnets
-}
-
-
-
-
-
-
-module "firewall" {
-  source         = "../../modules/firewall"
-  vpc_name       = module.network.vpc_name
-  firewall_rules = local.firewall_rules
-}
-
-
 
 locals {
   vpn_private_networks = concat(
@@ -47,6 +25,7 @@ locals {
 resource "google_compute_address" "openvpn_static_ip" {
   name = "openvpn-static-ip"
   region = var.region
+  
 
 }
 
@@ -63,18 +42,16 @@ resource "google_compute_instance" "openvpn" {
       size  = 10
     }
   }
-  network_interface {
-    subnetwork =  module.network.subnets["${var.vpc_name}-public-b"].self_link
+network_interface {
+  subnetwork = google_compute_subnetwork.shared_subnets["${var.vpc_name}-public-b"].id
 
-    # enable_public_ip 가 true일 때만 access_config 블록을 생성
-    dynamic "access_config" {
-        for_each = [1] # 또는 enable_public_ip ? [1] : []
-        content {
-        nat_ip = google_compute_address.openvpn_static_ip.address
-        }  
+  dynamic "access_config" {
+    for_each = [1]
+    content {
+      nat_ip = google_compute_address.openvpn_static_ip.address
     }
   }
-
+}
   metadata_startup_script = local.startup_script
 
   service_account {
@@ -82,29 +59,38 @@ resource "google_compute_instance" "openvpn" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
- //ifecycle {
-   // prevent_destroy = true
-  //}
+ lifecycle {
+    prevent_destroy = true
+  }
 }
 
 
-module "backend" {
-    source                = "../../modules/compute"
-    name                  = "backend"
-    machine_type          = "e2-medium"
-    zone                  = "asia-east1-b"
-    image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
-    disk_size_gb          = 10
-    tags                  = ["allow-vpn-ssh"]
-    
-    subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
-    
-    # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
-    deploy_ssh_public_key = var.ssh_private_key
-    
-    service_account_email  = var.default_sa_email
-    service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-   
+
+resource "google_compute_network" "shared_vpc" {
+  name                    = var.vpc_name
+  auto_create_subnetworks = false
+  routing_mode            = "REGIONAL"
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Subnet 공통 생성 - public / private / nat 태그로 분리
+resource "google_compute_subnetwork" "shared_subnets" {
+  for_each = {
+    for subnet in concat(local.public_subnets, local.private_subnets, local.nat_subnets) :
+    subnet.name => subnet
+  }
+
+  name          = each.value.name
+  ip_cidr_range = each.value.cidr
+  region        = var.region
+  network       = google_compute_network.shared_vpc.id
+  private_ip_google_access = each.value.private_ip_google_access
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 
@@ -228,7 +214,25 @@ locals {
   ])
 }
 
+resource "google_compute_firewall" "shared_firewalls" {
+  for_each = { for rule in local.firewall_rules : rule.name => rule }
 
+  name    = "${var.vpc_name}-${each.key}"
+  network = google_compute_network.shared_vpc.self_link
+
+  direction     = each.value.direction
+  priority      = each.value.priority
+  description   = each.value.description
+  source_ranges = each.value.source_ranges
+  target_tags   = lookup(each.value, "target_tags", [])
+  allow {
+    protocol = each.value.protocol
+    ports    = lookup(each.value, "ports", [])
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
 
 
@@ -257,4 +261,25 @@ module "bastion_openvpn" {
 
   service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+}*/
+
+
+
+/*module "backend" {
+    source                = "../../modules/compute"
+    name                  = "backend"
+    machine_type          = "e2-medium"
+    zone                  = "asia-east1-b"
+    image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
+    disk_size_gb          = 10
+    tags                  = ["allow-vpn-ssh"]
+    
+    subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
+    
+    # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
+    deploy_ssh_public_key = var.ssh_private_key
+    
+    service_account_email  = var.default_sa_email
+    service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+   
 }*/
