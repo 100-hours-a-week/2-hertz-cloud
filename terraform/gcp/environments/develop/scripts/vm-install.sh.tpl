@@ -58,15 +58,17 @@ echo "[INFO] 기본 초기화 완료"
 # ───────────────────────────────────────────────
 # 2. ECR 로그인 (필요 시만)
 # ───────────────────────────────────────────────
-if [[ "${USE_ECR}" == "true" ]]; then
+IMAGE = ${image}
+
+if [[ "${use_ecr}" == "true" ]]; then
   echo "[startup] ECR 사용 설정 → 자격 증명 파일 작성 및 로그인"
 
   # 2-1) 자격 증명 파일 생성
   mkdir -p /root/.aws
   cat >/root/.aws/credentials <<EOF
 [default]
-aws_access_key_id=${AWS_ACCESS_KEY_ID}
-aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
+AWS_ACCESS_KEY_ID=${aws_access_key_id}
+AWS_SECRET_ACCESS_KEY=${aws_secret_access_key}
 EOF
 
   # 2-2) 레지스트리 도메인 추출 → 로그인
