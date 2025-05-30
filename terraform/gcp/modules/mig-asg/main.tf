@@ -1,11 +1,12 @@
 resource "google_compute_instance_template" "this" {
   name_prefix  = "${var.name}-tmpl-"
   machine_type = var.machine_type
-  disk {
-  
+   disk {
     auto_delete  = true
     boot         = true
-    type         = "PERSISTENT"
+    source_image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+    disk_size_gb = var.disk_size_gb              # 필요시 조정
+    type         = "pd-balanced"
   }
   network_interface {
     subnetwork = var.subnet_self_link
