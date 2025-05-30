@@ -91,7 +91,7 @@ module "asg" {
   source            = "../../modules/mig-asg"
   name              = "tuning-backend"
   region            = var.region
-  subnet_self_link  = var.subnet_self_link
+  subnet_self_link  = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
   startup_tpl       = templatefile(
   "${path.module}/scripts/vm-install.sh.tpl",
   { 
