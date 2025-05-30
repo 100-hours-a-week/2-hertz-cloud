@@ -1,13 +1,13 @@
 output "vpc_name" {
-  value = module.network.vpc_name
+  value = google_compute_network.shared_vpc.name
 }
 
 output "vpc_self_link" {
-  value = module.network.vpc_self_link
+  value = google_compute_network.shared_vpc.self_link
 }
 
 output "subnets" {
-  value = module.network.subnets
+  value = [for s in google_compute_subnetwork.shared_subnets : s.self_link]
 }
 
 output "firewall_rules" {
