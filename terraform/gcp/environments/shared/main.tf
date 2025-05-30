@@ -1,13 +1,11 @@
 terraform {
   backend "remote" {
     organization = "hertz-tuning"
-
     workspaces {
       name = "gcp-shared"
     }
   }
 }
-
 provider "google" {
   credentials = var.dev_gcp_sa_key
   project = var.dev_gcp_project_id
@@ -70,7 +68,6 @@ module "shared_network" {
   public_subnets   = local.public_subnets
   private_subnets  = local.private_subnets
   nat_subnets      = local.nat_subnets
-  prevent_destroy = true
 }
 
 
@@ -121,18 +118,18 @@ locals {
     source_ranges = ["0.0.0.0/0"]
     target_tags   = ["openvpn"]
     description   = "Allow OpenVPN admin and client web access"
-},
-{
-  name          = "ssh-from-vpn"
-  env           = var.env
-  direction     = "INGRESS"
-  priority      = 1003
-  protocol      = "tcp"
-  ports         = ["22"]
-  source_ranges = var.vpn_client_cidr_blocks 
-  target_tags   = ["allow-vpn-ssh"]
-  description   = "Allow SSH from VPN clients"
-}
+    },
+    {
+    name          = "ssh-from-vpn"
+    env           = var.env
+    direction     = "INGRESS"
+    priority      = 1003
+    protocol      = "tcp"
+    ports         = ["22"]
+    source_ranges = var.vpn_client_cidr_blocks 
+    target_tags   = ["allow-vpn-ssh"]
+    description   = "Allow SSH from VPN clients"
+    }
   ]
 }
 
@@ -159,6 +156,66 @@ resource "google_compute_address" "openvpn_static_ip" {
   }
 }
 
+
+resource "google_compute_instance" "openvpn" {
+  name                  = "openvpn"
+  machine_type          = "e2-small"
+  zone                  = "asia-east1-b"
+  tags                  = ["openvpn", "openvpn-console", "allow-ssh-http"]  
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 10
+    }
+  }
+  network_interface {
+    subnetwork =  module.network.subnets["${var.vpc_name}-public-b"].self_link
+
+    # enable_public_ip 가 true일 때만 access_config 블록을 생성
+    dynamic "access_config" {
+        for_each = [1] # 또는 enable_public_ip ? [1] : []
+        content {
+        nat_ip = google_compute_address.openvpn_static_ip.address
+        }  
+    }
+  }
+
+  metadata_startup_script = module.compute.startup_script
+
+  service_account {
+    email  = var.default_sa_email
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+
+module "backend" {
+    source                = "../../modules/compute"
+    name                  = "backend"
+    machine_type          = "e2-medium"
+    zone                  = "asia-east1-b"
+    image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
+    disk_size_gb          = 10
+    tags                  = ["allow-vpn-ssh"]
+    
+    subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
+    
+    # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
+    deploy_ssh_public_key = var.ssh_private_key
+    
+    service_account_email  = var.default_sa_email
+    service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+
+}
+
+
+
+/*
 module "bastion_openvpn" {
   source                = "../../modules/compute"
   name                  = "openvpn"
@@ -182,27 +239,4 @@ module "bastion_openvpn" {
 
   service_account_email  = var.default_sa_email
   service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-  prevent_destroy        = true
-}
-
-module "backend" {
-    source                = "../../modules/compute"
-    name                  = "backend"
-    machine_type          = "e2-medium"
-    zone                  = "asia-east1-b"
-    image                 = "ubuntu-os-cloud/ubuntu-2204-lts"
-    disk_size_gb          = 10
-    tags                  = ["allow-vpn-ssh"]
-    
-    subnetwork            = module.network.subnets["${var.vpc_name}-nat-b"].self_link
-    
-    # ✅ deploy 계정의 SSH 키는 base-init.sh.tpl에서 사용됨
-    deploy_ssh_public_key = var.ssh_private_key
-    
-    service_account_email  = var.default_sa_email
-    service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-    
-    
-    prevent_destroy        = false
-
-}
+}*/

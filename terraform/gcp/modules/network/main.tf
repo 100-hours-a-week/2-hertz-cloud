@@ -3,7 +3,7 @@ resource "google_compute_network" "vpc" {
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
   lifecycle {
-    prevent_destroy = var.prevent_destroy
+    prevent_destroy = true
   }
 }
 
@@ -20,8 +20,8 @@ resource "google_compute_subnetwork" "subnets" {
   network       = google_compute_network.vpc.id
 
   private_ip_google_access = each.value.private_ip_google_access
-  lifecycle {
-    prevent_destroy = var.prevent_destroy
+    lifecycle {
+    prevent_destroy = true
   }
 
 }

@@ -11,7 +11,6 @@ resource "google_compute_instance" "vm" {
       size  = var.disk_size_gb
     }
   }
-
   network_interface {
     subnetwork = var.subnetwork
 
@@ -41,3 +40,4 @@ locals {
     var.extra_startup_script
   ])
 }
+
