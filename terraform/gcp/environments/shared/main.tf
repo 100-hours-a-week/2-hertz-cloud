@@ -47,9 +47,7 @@ locals {
 resource "google_compute_address" "openvpn_static_ip" {
   name = "openvpn-static-ip"
   region = var.region
-  lifecycle {
-    prevent_destroy = true
-  }
+
 }
 
 
@@ -84,9 +82,9 @@ resource "google_compute_instance" "openvpn" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+ //ifecycle {
+   // prevent_destroy = true
+  //}
 }
 
 
