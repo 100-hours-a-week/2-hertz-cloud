@@ -20,6 +20,11 @@ variable "machine_type" {
   default = "e2-medium"
 }
 
+variable "disk_size_gb" {
+  type    = number
+  default = 20
+}
+
 variable "desired" {
   type    = number
   default = 2
