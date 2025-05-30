@@ -93,7 +93,6 @@ module "asg" {
   region            = var.region
   subnet_self_link  = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
 
-  disk_size_gb    = 30
   startup_tpl       = templatefile(
   "${path.module}/scripts/vm-install.sh.tpl",
   { 
