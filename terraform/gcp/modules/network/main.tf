@@ -2,6 +2,9 @@ resource "google_compute_network" "vpc" {
   name                    = var.vpc_name
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Subnet 공통 생성 - public / private / nat 태그로 분리
@@ -17,6 +20,9 @@ resource "google_compute_subnetwork" "subnets" {
   network       = google_compute_network.vpc.id
 
   private_ip_google_access = each.value.private_ip_google_access
+    lifecycle {
+    prevent_destroy = true
+  }
 
 }
 

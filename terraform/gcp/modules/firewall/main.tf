@@ -17,4 +17,12 @@ resource "google_compute_firewall" "rules" {
   source_ranges = each.value.source_ranges
   target_tags   = each.value.target_tags
   description   = each.value.description
+  lifecycle {
+    prevent_destroy = true
+  }
 }
+
+
+
+
+

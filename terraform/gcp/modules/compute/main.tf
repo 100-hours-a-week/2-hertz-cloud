@@ -11,14 +11,16 @@ resource "google_compute_instance" "vm" {
       size  = var.disk_size_gb
     }
   }
-
   network_interface {
     subnetwork = var.subnetwork
 
     # enable_public_ip 가 true일 때만 access_config 블록을 생성
     dynamic "access_config" {
       for_each = var.enable_public_ip ? [1] : []
-      content {}
+      content {
+        # static_ip(고정 IP)가 있으면 그걸 쓰고, 없으면 임시 IP
+        nat_ip = var.static_ip != "" ? var.static_ip : null
+      }
     }
   }
 
@@ -38,3 +40,4 @@ locals {
     var.extra_startup_script
   ])
 }
+

@@ -1,10 +1,5 @@
-variable "vpc_name" {
-  description = "VPC 이름"
-  type        = string
-}
-
+variable "vpc_name" { type = string }
 variable "firewall_rules" {
-  description = "방화벽 규칙 리스트"
   type = list(object({
     name          = string
     env           = string
