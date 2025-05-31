@@ -24,7 +24,7 @@ provider "google" {
   region  = var.region
 
 }
-
+/*
 module "backend" {
     source                = "../../modules/compute"
     name                  = "backend"
@@ -42,7 +42,7 @@ module "backend" {
     service_account_email  = var.default_sa_email
     service_account_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
    
-}
+}*/
 
 
 # Cloud Router
