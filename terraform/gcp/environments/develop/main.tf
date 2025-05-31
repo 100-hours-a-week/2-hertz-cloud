@@ -100,7 +100,7 @@ module "asg" {
     
     deploy_ssh_public_key = var.ssh_private_key, # deploy 계정의 SSH 공개키
     
-    image               = var.docker_image              # 필수
+    docker_image               = var.docker_image              # 필수
     use_ecr             = true                   # true/false
     aws_region          = var.aws_region                # optional
     aws_access_key_id   = var.aws_access_key_id         # optional
@@ -178,12 +178,12 @@ module "tg" {
 
   backends = [
     {
-      instance_group  = this.asg_blue.instance_group   # MIG-ASG 모듈 output
+      instance_group  = module.asg_blue.instance_group  # MIG-ASG 모듈 output
       weight          = 100
       balancing_mode  = "UTILIZATION"  # 생략 가능
     },
     {
-      instance_group  = this.asg_green.instance_group
+      instance_group  = module.asg_green.instance_group
       weight          = 0
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
