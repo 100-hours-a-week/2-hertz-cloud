@@ -63,3 +63,8 @@ variable "ip_prefix_length" {
 }
 
 
+// ▶ Proxy-Only Subnet의 self_link를 받아올 변수
+variable "proxy_subnet_self_link" {
+  description = "Internal HTTP LB 프록시 전용 서브넷(Proxy-Only Subnet) self_link"
+  type        = string
+}

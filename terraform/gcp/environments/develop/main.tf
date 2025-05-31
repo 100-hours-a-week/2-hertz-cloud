@@ -147,11 +147,29 @@ module "backend_internal_asg_green" {
 # 백엔드 Internal Load Balancer (8080)
 ############################################################
 
+resource "google_compute_subnetwork" "ilb_proxy_subnet" {
+  name          = "${var.vpc_name}-ilb-proxy-subnet"
+  ip_cidr_range = var.proxy_subnet_cidr 
+  region        = var.region                 # 예: asia-east1
+  network       = local.vpc_self_link          # VPC self_link
+
+  # ────────────────────────────────────────────────────
+  # 서브넷 용도를 "Internal HTTPS Load Balancer" 용도로 지정
+  # 이 옵션이 있어야 프록시 전용 모드(subnet role)가 활성화됨
+  purpose                         = "INTERNAL_HTTPS_LOAD_BALANCER"
+  private_ip_google_access        = true    # 필요 시 활성화
+  # role: 자동 부여되므로 따로 설정할 필요 없음
+  # ────────────────────────────────────────────────────
+}
+
+
 module "backend_internal_lb" {
   source                = "../../modules/internal-http-lb"
   region                = var.region
   subnet_self_link      = local.subnet_self_link
   vpc_self_link         = data.terraform_remote_state.shared.outputs.vpc_self_link
+  proxy_subnet_self_link = google_compute_subnetwork.ilb_proxy_subnet.self_link
+
   backend_name_prefix   = "backend-internal-lb"
   backends = [
     {
