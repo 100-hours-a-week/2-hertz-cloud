@@ -39,19 +39,20 @@ resource "google_compute_region_target_http_proxy" "this" {
   url_map = google_compute_region_url_map.this.self_link
 }
 
+/*
 resource "google_compute_address" "internal_ip" {
   name         = "${var.backend_name_prefix}-ip"
   address_type = "INTERNAL"
- subnetwork   = var.proxy_subnet_self_link
+  subnetwork   = var.proxy_subnet_self_link
   region       = var.region
-}
+}*/
 
 resource "google_compute_forwarding_rule" "this" {
   name                  = "${var.backend_name_prefix}-fr"
   load_balancing_scheme = "INTERNAL_MANAGED"
   network               = var.vpc_self_link
   subnetwork            = var.proxy_subnet_self_link 
-  ip_address            = google_compute_address.internal_ip.address
+  #ip_address            = google_compute_address.internal_ip.address
   ports                 = [var.port]      # 리스트 형식
   target                = google_compute_region_target_http_proxy.this.self_link
   region                = var.region
