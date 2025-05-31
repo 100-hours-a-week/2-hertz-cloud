@@ -165,21 +165,6 @@ resource "google_compute_subnetwork" "ilb_proxy_subnet" {
   role    = "ACTIVE"
 }
 
-module "firewall_rules" {
-  source = "../../modules/firewall-rules"
-
-  rules = [
-    {
-      name          = "ilb-proxy-allow-internal"
-      env           = var.env
-      direction     = "INGRESS"
-      priority      = 1000
-      protocol      = "tcp"
-      ports         = ["8080"]
-      source_ranges = [""]
-    }
-  ]
-}
 
 module "backend_internal_lb" {
   source                = "../../modules/internal-http-lb"
@@ -364,3 +349,4 @@ resource "google_compute_firewall" "allow_ilb_proxy_to_backend" {
   target_tags = ["backend"]  # 백엔드 VM에 붙어 있어야 함
   description = "Allow Internal LB proxy (subnet ${var.proxy_subnet_cidr}) to reach backend VMs on TCP/8080"
 }
+
