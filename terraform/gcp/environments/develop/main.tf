@@ -157,9 +157,6 @@ resource "google_compute_subnetwork" "ilb_proxy_subnet" {
   # 서브넷 용도를 "Internal HTTPS Load Balancer" 용도로 지정
   # 이 옵션이 있어야 프록시 전용 모드(subnet role)가 활성화됨
   purpose                         = "INTERNAL_HTTPS_LOAD_BALANCER"
-  private_ip_google_access        = true    # 필요 시 활성화
-  # role: 자동 부여되므로 따로 설정할 필요 없음
-  # ────────────────────────────────────────────────────
 }
 
 
