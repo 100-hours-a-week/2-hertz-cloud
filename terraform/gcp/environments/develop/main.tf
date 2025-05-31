@@ -95,54 +95,53 @@ locals {
 ############################################################
 
 # Blue
-module "backend_asg_blue" {
+# 1) Internal 전용 MIGs (Internal LB용)
+module "backend_internal_asg_blue" {
   source           = "../../modules/mig-asg"
-  name             = "tuning-backend-blue"
-  region           = local.region
+  name             = "backend-internal-blue"
+  region           = var.region
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
   machine_type     = "e2-medium"
   desired          = 1
   min              = 1
   max              = 2
-  cpu_target       = 0.9
+  cpu_target       = 0.8
 
-  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+  startup_tpl      = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
     docker_image           = var.docker_image_backend_blue
-    use_ecr                = true
+    use_ecr                = var.use_ecr
     aws_region             = var.aws_region
     aws_access_key_id      = var.aws_access_key_id
     aws_secret_access_key  = var.aws_secret_access_key
   })
-
   health_check = module.hc_backend.self_link
 }
 
-# Green
-module "backend_asg_green" {
+module "backend_internal_asg_green" {
   source           = "../../modules/mig-asg"
-  name             = "tuning-backend-green"
-  region           = local.region
+  name             = "backend-internal-green"
+  region           = var.region
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
   machine_type     = "e2-medium"
   desired          = 0
   min              = 0
-  max              = 1
-  cpu_target       = 0.9
+  max              = 2
+  cpu_target       = 0.8
 
-  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+  startup_tpl      = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
     docker_image           = var.docker_image_backend_green
-    use_ecr                = true
+    use_ecr                = var.use_ecr
     aws_region             = var.aws_region
     aws_access_key_id      = var.aws_access_key_id
     aws_secret_access_key  = var.aws_secret_access_key
   })
-
   health_check = module.hc_backend.self_link
 }
+
 
 ############################################################
 # 백엔드 Internal Load Balancer (8080)
@@ -151,28 +150,26 @@ module "backend_asg_green" {
 module "backend_internal_lb" {
   source                = "../../modules/internal-http-lb"
   region                = var.region
-  vpc_self_link = local.vpc_self_link
   subnet_self_link      = local.subnet_self_link
+  vpc_self_link         = data.terraform_remote_state.shared.outputs.vpc_self_link
   backend_name_prefix   = "backend-internal-lb"
-
   backends = [
     {
-      instance_group  = module.backend_asg_blue.instance_group
+      instance_group  = module.backend_internal_asg_blue.instance_group
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     },
     {
-      instance_group  = module.backend_asg_green.instance_group
+      instance_group  = module.backend_internal_asg_green.instance_group
       balancing_mode  = "UTILIZATION"
-      capacity_scaler = 0.0
+      capacity_scaler = 1.0
     }
   ]
-
   backend_hc_port     = 8080
   backend_timeout_sec = 30
   health_check_path   = "/health"
-  port               = "8080"
-  ip_prefix_length   = 28
+  port                = "8080"
+  ip_prefix_length    = 28
 }
 
 ############################################################
@@ -239,13 +236,13 @@ module "backend_tg" {
   health_check = module.hc_backend.self_link
   backends = [
     {
-      instance_group  = module.backend_asg_blue.instance_group
+      instance_group  = module.backend_internal_asg_blue.instance_group
       weight          = 100
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     },
     {
-      instance_group  = module.backend_asg_green.instance_group
+      instance_group  = module.backend_internal_asg_green.instance_group
       weight          = 0
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
