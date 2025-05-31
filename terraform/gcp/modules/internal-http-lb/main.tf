@@ -49,7 +49,7 @@ resource "google_compute_address" "internal_ip" {
   region       = var.region
 }*/
 
-resource "google_compute_region_forwarding_rule" "this" {
+resource "google_compute_forwarding_rule" "this" {
   name                  = "${var.backend_name_prefix}-fr"
   load_balancing_scheme = "INTERNAL_MANAGED"
   network               = var.vpc_self_link
