@@ -59,9 +59,6 @@ network_interface {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
- lifecycle {
-    prevent_destroy = true
-  }
 }
 
 
@@ -70,9 +67,6 @@ resource "google_compute_network" "shared_vpc" {
   name                    = var.vpc_name
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # Subnet 공통 생성 - public / private / nat 태그로 분리
@@ -87,10 +81,6 @@ resource "google_compute_subnetwork" "shared_subnets" {
   region        = var.region
   network       = google_compute_network.shared_vpc.id
   private_ip_google_access = each.value.private_ip_google_access
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 
@@ -228,8 +218,5 @@ resource "google_compute_firewall" "shared_firewalls" {
   allow {
     protocol = each.value.protocol
     ports    = lookup(each.value, "ports", [])
-  }
-  lifecycle {
-    prevent_destroy = true
   }
 }
