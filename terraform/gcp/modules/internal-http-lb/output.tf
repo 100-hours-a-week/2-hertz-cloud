@@ -10,9 +10,3 @@ output "http_proxy_self_link" {
   value = google_compute_region_target_http_proxy.this.self_link
 }
 
-output "internal_lb_ip" {
-  description = "Internal HTTP LB 사설 IP"
-  value       = google_compute_address.internal_ip.address
-
-}
-
