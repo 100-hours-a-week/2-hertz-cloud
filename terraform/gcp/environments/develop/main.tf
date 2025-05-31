@@ -149,7 +149,7 @@ module "backend_internal_asg_green" {
 
 resource "google_compute_subnetwork" "ilb_proxy_subnet" {
   name          = "${var.vpc_name}-ilb-proxy-subnet"
-  ip_cidr_range = var.proxy_subnet_cidr #"10.10.31.0/28"             # 원하는 CIDR(내부 IP 풀)
+  ip_cidr_range = var.proxy_subnet_cidr 
   region        = var.region                 # 예: asia-east1
   network       = local.vpc_self_link          # VPC self_link
 
