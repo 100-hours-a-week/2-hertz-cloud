@@ -64,6 +64,7 @@ resource "google_compute_router_nat" "nat" {
 
 locals {
   nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_subnet_info
+  firewall_rules = data.terraform_remote_state.shared.outputs.firewall_rules
 }
 
 ############################################################
@@ -117,6 +118,8 @@ module "backend_internal_asg_blue" {
     aws_secret_access_key  = var.aws_secret_access_key
   })
   health_check = module.hc_backend.self_link
+  tags = ["backend", "backend-hc","allow-vpn-ssh"]  # 헬스체크 태그 추가
+  port_http = 8080
 }
 
 module "backend_internal_asg_green" {
@@ -140,6 +143,8 @@ module "backend_internal_asg_green" {
     aws_secret_access_key  = var.aws_secret_access_key
   })
   health_check = module.hc_backend.self_link
+  tags = ["backend", "backend-hc","allow-vpn-ssh"]
+  port_http = 8080
 }
 
 
@@ -157,8 +162,24 @@ resource "google_compute_subnetwork" "ilb_proxy_subnet" {
   # 서브넷 용도를 "Internal HTTPS Load Balancer" 용도로 지정
   # 이 옵션이 있어야 프록시 전용 모드(subnet role)가 활성화됨
   purpose                         = "INTERNAL_HTTPS_LOAD_BALANCER"
+  role    = "ACTIVE"
 }
 
+module "firewall_rules" {
+  source = "../../modules/firewall-rules"
+
+  rules = [
+    {
+      name          = "ilb-proxy-allow-internal"
+      env           = var.env
+      direction     = "INGRESS"
+      priority      = 1000
+      protocol      = "tcp"
+      ports         = ["8080"]
+      source_ranges = [""]
+    }
+  ]
+}
 
 module "backend_internal_lb" {
   source                = "../../modules/internal-http-lb"
@@ -212,8 +233,9 @@ module "frontend_asg_blue" {
     aws_access_key_id     = var.aws_access_key_id
     aws_secret_access_key = var.aws_secret_access_key
   })
-
+  port_http = 80
   health_check = module.hc_frontend.self_link
+  
 }
 
 # Green
@@ -237,8 +259,9 @@ module "frontend_asg_green" {
     aws_access_key_id     = var.aws_access_key_id
     aws_secret_access_key = var.aws_secret_access_key
   })
-
+  port_http = 80
   health_check = module.hc_frontend.self_link
+  tags=["allow-ssh-http","allow-vpn-ssh"]
 }
 
 ############################################################
@@ -295,4 +318,49 @@ module "frontend_lb" {
   domains          = [var.domain_frontend]
   backend_service  = module.backend_tg.backend_service_self_link      # /api/* 경로용
   frontend_service = module.frontend_tg.backend_service_self_link     # 그 외 기본 경로용
+}
+
+
+
+resource "google_compute_firewall" "allow_internal_hc" {
+  name    = "${var.vpc_name}-allow-internal-hc"
+  network = data.terraform_remote_state.shared.outputs.vpc_self_link
+
+  direction = "INGRESS"
+  priority  = 1000
+
+  # GCP 헬스체크 IP 범위 (HTTP/HTTPS 헬스체크용)
+  source_ranges = [
+    "130.211.0.0/22",
+    "35.191.0.0/16",
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]      # 헬스체크 포트(Backend VM의 헬스 엔드포인트)
+  }
+
+  # 헬스체크 트래픽을 수신할 Backend VM에 붙은 태그
+  target_tags = ["backend-hc"]
+  description = "Allow GCP Internal LB health checks (TCP:8080) to backend VMs"
+}
+
+resource "google_compute_firewall" "allow_ilb_proxy_to_backend" {
+  name    = "${var.vpc_name}-allow-ilb-proxy-to-backend"
+  network = data.terraform_remote_state.shared.outputs.vpc_self_link
+
+  direction = "INGRESS"
+  priority  = 1000
+
+  # ILB Proxy-Only Subnet CIDR
+  # 예: var.proxy_subnet_cidr = "10.10.31.0/28"
+  source_ranges = [ var.proxy_subnet_cidr ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]      # 내부 LB(Proxy)에서 백엔드 VM으로 보내는 HTTP 포트
+  }
+
+  target_tags = ["backend"]  # 백엔드 VM에 붙어 있어야 함
+  description = "Allow Internal LB proxy (subnet ${var.proxy_subnet_cidr}) to reach backend VMs on TCP/8080"
 }

@@ -67,3 +67,16 @@ variable "aws_secret_access_key" {
   type    = string
   default = ""
 }
+
+
+variable "tags" {
+  type    = list(string)
+  default = []
+  
+}
+
+variable "port_http" {
+  type    = number
+  default = 80
+  
+}
