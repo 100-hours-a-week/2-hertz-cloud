@@ -13,6 +13,7 @@ resource "google_compute_health_check" "this" {
 resource "google_compute_region_backend_service" "this" {
   name                  = "${var.backend_name_prefix}-bs"
   protocol              = "HTTP"
+  port_name             = "http"                            # << 추가
   health_checks         = [google_compute_health_check.this.self_link]
   timeout_sec           = var.backend_timeout_sec
   load_balancing_scheme = "INTERNAL_MANAGED"
@@ -28,14 +29,14 @@ resource "google_compute_region_backend_service" "this" {
 }
 
 
-resource "google_compute_url_map" "this" {
+resource "google_compute_region_url_map" "this" {
   name            = "${var.backend_name_prefix}-url-map"
   default_service = google_compute_region_backend_service.this.self_link
 }
 
-resource "google_compute_target_http_proxy" "this" {
+resource "google_compute_region_target_http_proxy" "this" {
   name    = "${var.backend_name_prefix}-http-proxy"
-  url_map = google_compute_url_map.this.self_link
+  url_map = google_compute_region_url_map.this.self_link
 }
 
 resource "google_compute_address" "internal_ip" {
@@ -52,6 +53,6 @@ resource "google_compute_forwarding_rule" "this" {
   subnetwork            = var.subnet_self_link
   ip_address            = google_compute_address.internal_ip.address
   ports                 = [var.port]      # 리스트 형식
-  target                = google_compute_target_http_proxy.this.self_link
+  target                = google_compute_region_target_http_proxy.this.self_link
   region                = var.region
 }
