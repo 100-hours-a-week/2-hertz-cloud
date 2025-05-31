@@ -12,5 +12,6 @@ output "http_proxy_self_link" {
 
 output "internal_lb_ip" {
   description = "Internal HTTP LB 사설 IP"
-  value       = google_compute_global_address.internal_ip.address
+  value       = google_compute_address.internal_ip.address
 }
+
