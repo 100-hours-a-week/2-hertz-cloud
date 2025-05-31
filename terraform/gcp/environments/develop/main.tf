@@ -87,6 +87,7 @@ module "hc_frontend" {
 locals {
   region           = var.region
   subnet_self_link = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
+  vpc_self_link = data.terraform_remote_state.shared.outputs.vpc_self_link
 }
 
 ############################################################
@@ -150,6 +151,7 @@ module "backend_asg_green" {
 module "backend_internal_lb" {
   source                = "../../modules/internal-http-lb"
   region                = var.region
+  vpc_self_link = local.vpc_self_link
   subnet_self_link      = local.subnet_self_link
   backend_name_prefix   = "backend-internal-lb"
 

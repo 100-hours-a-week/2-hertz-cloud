@@ -38,21 +38,20 @@ resource "google_compute_target_http_proxy" "this" {
   url_map = google_compute_url_map.this.self_link
 }
 
-resource "google_compute_global_address" "internal_ip" {
+resource "google_compute_address" "internal_ip" {
   name         = "${var.backend_name_prefix}-ip"
-  purpose      = "VPC_PEERING"
   address_type = "INTERNAL"
-  network      = data.terraform_remote_state.shared.outputs.vpc_self_link
-  prefix_length = var.ip_prefix_length  # 예: 28
+  subnetwork   = var.subnet_self_link
+  region       = var.region
 }
 
-resource "google_compute_region_forwarding_rule" "this" {
+resource "google_compute_forwarding_rule" "this" {
   name                  = "${var.backend_name_prefix}-fr"
   load_balancing_scheme = "INTERNAL_MANAGED"
-  port_range            = var.port        # "8080"
+  network               = var.vpc_self_link
+  subnetwork            = var.subnet_self_link
+  ip_address            = google_compute_address.internal_ip.address
+  ports                 = [var.port]      # 리스트 형식
   target                = google_compute_target_http_proxy.this.self_link
-
-  network    = data.terraform_remote_state.shared.outputs.vpc_self_link
-  subnetwork = var.subnet_self_link
-  ip_address = google_compute_global_address.internal_ip.address
+  region                = var.region
 }

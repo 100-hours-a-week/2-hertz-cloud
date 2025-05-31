@@ -3,6 +3,11 @@ variable "region" {
   type        = string
 }
 
+variable "vpc_self_link" {
+  description = "VPC self link"
+  type        = string
+}
+
 variable "subnet_self_link" {
   description = "백엔드가 속한 서브넷 self_link"
   type        = string
@@ -56,3 +61,5 @@ variable "ip_prefix_length" {
   type        = number
   default     = 28
 }
+
+
