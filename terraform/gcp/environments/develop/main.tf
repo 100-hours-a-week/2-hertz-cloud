@@ -139,7 +139,10 @@ module "asg_blue" {
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
     docker_image           = var.docker_image   # 예: gcr.io/proj/app:blue
-    use_ecr                = false
+     use_ecr             = true                   # true/false
+    aws_region          = var.aws_region                # optional
+    aws_access_key_id   = var.aws_access_key_id         # optional
+    aws_secret_access_key = var.aws_secret_access_key   # optional
   })
 
   health_check = local.health_check_link
@@ -164,7 +167,10 @@ module "asg_green" {
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
     docker_image           = var.docker_image  # 예: gcr.io/proj/app:green
-    use_ecr                = false
+    use_ecr             = true                   # true/false
+    aws_region          = var.aws_region                # optional
+    aws_access_key_id   = var.aws_access_key_id         # optional
+    aws_secret_access_key = var.aws_secret_access_key   # optional
   })
 
   health_check = local.health_check_link
