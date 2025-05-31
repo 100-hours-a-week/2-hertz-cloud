@@ -80,48 +80,32 @@ locals {
   nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_subnet_info
 }
 
-module "hc" {
+module "hc_backend" {
   source        = "../../modules/health-check"
-  name          = "app-hc"
+  name          = "backend-http-hc"
   port          = 8080
   request_path  = "/health"
 }
-/*
-module "asg" {
-  source            = "../../modules/mig-asg"
-  name              = "tuning-backend"
-  region            = var.region
-  subnet_self_link  = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
-  
-  disk_size_gb    = 20
-  startup_tpl       = templatefile(
-  "${path.module}/scripts/vm-install.sh.tpl",
-  { 
-    
-    deploy_ssh_public_key = var.ssh_private_key, # deploy 계정의 SSH 공개키
-    
-    docker_image               = var.docker_image              # 필수
-    use_ecr             = true                   # true/false
-    aws_region          = var.aws_region                # optional
-    aws_access_key_id   = var.aws_access_key_id         # optional
-    aws_secret_access_key = var.aws_secret_access_key   # optional
-  }
-  )
-  health_check      = module.hc.self_link
-}*/
+
+module "hc_frontend" {
+  source        = "../../modules/health-check"
+  name          = "frontend-http-hc"
+  port          = 80
+  request_path  = "/health"
+}
 
 
 
 locals {
   region            = var.region
   subnet_self_link  = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
-  health_check_link = module.hc.self_link         # 이미 만들어 둔 Health-Check 모듈
+        # 이미 만들어 둔 Health-Check 모듈
 }
 
 ###############################################################################
 # 1) BLUE (현재 프로덕션)
 ###############################################################################
-module "asg_blue" {
+module "backend_asg_blue" {
   source            = "../../modules/mig-asg"
   name              = "tuning-backend-blue"
   region            = local.region
@@ -138,20 +122,20 @@ module "asg_blue" {
   # Startup Script (Blue 이미지 태그)
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
-    docker_image           = var.docker_image   # 예: gcr.io/proj/app:blue
+    docker_image           = var.docker_image_backend_blue   # 예: gcr.io/proj/app:blue
      use_ecr             = true                   # true/false
     aws_region          = var.aws_region                # optional
     aws_access_key_id   = var.aws_access_key_id         # optional
     aws_secret_access_key = var.aws_secret_access_key   # optional
   })
 
-  health_check = local.health_check_link
+  health_check = module.hc_backend.self_link
 }
 
 ###############################################################################
 # 2) GREEN (차세대 버전—초기 target_size=0 → 헬스 통과 후 weight 조정)
 ###############################################################################
-module "asg_green" {
+module "backend_asg_green" {
   source            = "../../modules/mig-asg"
   name              = "tuning-backend-green"
   region            = local.region
@@ -166,33 +150,151 @@ module "asg_green" {
 
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key  = var.ssh_private_key
-    docker_image           = var.docker_image  # 예: gcr.io/proj/app:green
+    docker_image           = var.docker_image_backend_green  # 예: gcr.io/proj/app:green
     use_ecr             = true                   # true/false
     aws_region          = var.aws_region                # optional
     aws_access_key_id   = var.aws_access_key_id         # optional
     aws_secret_access_key = var.aws_secret_access_key   # optional
   })
 
-  health_check = local.health_check_link
+  health_check = module.hc_backend.self_link
+}
+
+# 3-4) Internal HTTP Load Balancer (백엔드 전용, 포트 8080) 모듈 호출
+module "backend_internal_lb" {
+  source = "../../modules/internal-http-lb"
+
+  region                     = var.region
+  subnet_self_link           = local.subnet_self_link
+  backend_name_prefix        = "backend-internal-lb"
+
+  backends = [
+  {
+    instance_group  = module.backend_asg_blue.instance_group
+    # weight          = 100            ← TCP Backend Service에서는 weight 대신 capacity_scaler 사용
+    balancing_mode  = "UTILIZATION"
+    capacity_scaler = 1.0
+  },
+  {
+    instance_group  = module.backend_asg_green.instance_group
+    balancing_mode  = "UTILIZATION"
+    capacity_scaler = 0.0   # 예: 그린 풀은 0% 트래픽
+  }
+]
+
+  backend_hc_port     = 8080
+  backend_timeout_sec = 30
+  health_check_path   = "/health"
+  port                = "8080"
+  ip_prefix_length    = 28    # /28 등 필요에 따라 조정
 }
 
 
-module "tg" {
+
+module "frontend_asg_blue" {
+  source            = "../../modules/mig-asg"
+  name              = "frontend-blue"
+  region            = var.region
+  subnet_self_link  = local.subnet_self_link
+
+  disk_size_gb      = 20
+  machine_type      = "e2-medium"
+  desired           = 1
+  min               = 1
+  max               = 2
+  cpu_target        = 0.8
+
+  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+    deploy_ssh_public_key = var.ssh_private_key
+    docker_image          = var.docker_image_front_blue  # 예: gcr.io/…/frontend:blue
+    use_ecr               = false
+    aws_region          = var.aws_region                # optional
+    aws_access_key_id   = var.aws_access_key_id         # optional
+    aws_secret_access_key = var.aws_secret_access_key   # optional
+  })
+
+  health_check = module.hc_frontend.self_link
+}
+
+# 2-3) Frontend MIG-ASG (Green)
+module "frontend_asg_green" {
+  source            = "../../modules/mig-asg"
+  name              = "frontend-green"
+  region            = var.region
+  subnet_self_link  = local.subnet_self_link
+
+  disk_size_gb      = 20
+  machine_type      = "e2-medium"
+  desired           = 0    # 그린은 초기엔 0
+  min               = 0
+  max               = 2
+  cpu_target        = 0.8
+
+  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+    deploy_ssh_public_key = var.ssh_private_key
+    docker_image          = var.docker_image_front_green  # 예: gcr.io/…/frontend:green
+    use_ecr               = false
+    aws_region          = var.aws_region                # optional
+    aws_access_key_id   = var.aws_access_key_id         # optional
+    aws_secret_access_key = var.aws_secret_access_key   # optional
+  })
+
+  health_check = module.hc_frontend.self_link
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 먼저, Backend용 External BackendService 생성(경로 /api/*용)
+module "backend_tg" {
   source       = "../../modules/target-group"
-  name         = "app-backend"
-  health_check = module.hc.self_link
+  name         = "backend-backend-group"
+  health_check = module.hc_backend.self_link
 
   backends = [
     {
-      instance_group  = module.asg_blue.instance_group  # MIG-ASG 모듈 output
+      instance_group  = module.backend_asg_blue.instance_group
       weight          = 100
-      balancing_mode  = "UTILIZATION"  # 생략 가능
+      balancing_mode  = "UTILIZATION"
+      capacity_scaler = 1.0
     },
     {
-      instance_group  = module.asg_green.instance_group
+      instance_group  = module.backend_asg_green.instance_group
       weight          = 0
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     }
   ]
+}
+
+module "frontend_tg" {
+  source       = "../../modules/target-group"
+  name         = "frontend-backend-group"
+  health_check = module.hc_frontend.self_link
+
+  backends = [
+    {
+      instance_group  = module.frontend_asg_blue.instance_group
+      weight          = 100
+      balancing_mode  = "UTILIZATION"
+      capacity_scaler = 1.0
+    },
+    {
+      instance_group  = module.frontend_asg_green.instance_group
+      weight          = 0
+      balancing_mode  = "UTILIZATION"
+      capacity_scaler = 1.0
+    }
+  ]
+}
+
+# 2-5) External HTTPS Load Balancer (URL-Map 모듈 사용)
+module "frontend_lb" {
+  source           = "../../modules/url-map"
+  name             = "frontend-lb"
+  domains          = [var.domain_frontend]
+
+  # “/api/*” 경로는 backend_tg 로 분기
+  backend_service  = module.backend_tg.backend_service_self_link
+
+  # 기본 요청(“/” 또는 기타)은 frontend_tg 로
+  frontend_service = module.frontend_tg.backend_service_self_link
 }
