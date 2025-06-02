@@ -112,3 +112,67 @@ variable "proxy_subnet_cidr" {
   description = "프록시 서브넷 CIDR (예:"
   default     = "10.10.31.0/26"
 }
+
+
+# Blue/Green 배포 제어 변수
+variable "active_deployment" {
+  description = "Currently active deployment color"
+  type        = string
+  default     = "blue"
+  
+  validation {
+    condition     = contains(["blue", "green"], var.active_deployment)
+    error_message = "Active deployment must be either 'blue' or 'green'."
+  }
+}
+
+variable "traffic_weight_blue" {
+  description = "Traffic weight for blue deployment (0-100)"
+  type        = number
+  default     = 100
+  
+  validation {
+    condition     = var.traffic_weight_blue >= 0 && var.traffic_weight_blue <= 100
+    error_message = "Traffic weight must be between 0 and 100."
+  }
+}
+
+variable "traffic_weight_green" {
+  description = "Traffic weight for green deployment (0-100)"
+  type        = number
+  default     = 0
+  
+  validation {
+    condition     = var.traffic_weight_green >= 0 && var.traffic_weight_green <= 100
+    error_message = "Traffic weight must be between 0 and 100."
+  }
+}
+
+# ASG 크기 제어
+variable "blue_instance_count" {
+  description = "Number of instances for blue deployment"
+  type = object({
+    desired = number
+    min     = number
+    max     = number
+  })
+  default = {
+    desired = 1
+    min     = 1
+    max     = 2
+  }
+}
+
+variable "green_instance_count" {
+  description = "Number of instances for green deployment"
+  type = object({
+    desired = number
+    min     = number
+    max     = number
+  })
+  default = {
+    desired = 0
+    min     = 0
+    max     = 2
+  }
+}

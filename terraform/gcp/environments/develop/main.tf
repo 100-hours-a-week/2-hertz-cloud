@@ -65,6 +65,19 @@ resource "google_compute_router_nat" "nat" {
 locals {
   nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_subnet_info
   firewall_rules = data.terraform_remote_state.shared.outputs.firewall_rules
+
+  region           = var.region
+  subnet_self_link = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
+  vpc_self_link    = data.terraform_remote_state.shared.outputs.vpc_self_link
+
+   # Blue/Green 배포 상태 계산
+  blue_is_active  = var.active_deployment == "blue"
+  green_is_active = var.active_deployment == "green"
+  
+  # 트래픽 가중치 검증
+  total_weight = var.traffic_weight_blue + var.traffic_weight_green
+  normalized_blue_weight  = local.total_weight > 0 ? (var.traffic_weight_blue * 100 / local.total_weight) : 0
+  normalized_green_weight = local.total_weight > 0 ? (var.traffic_weight_green * 100 / local.total_weight) : 0
 }
 
 ############################################################
@@ -85,18 +98,13 @@ module "hc_frontend" {
   request_path  = "/health"
 }
 
-locals {
-  region           = var.region
-  subnet_self_link = data.terraform_remote_state.shared.outputs.nat_b_subnet_self_link
-  vpc_self_link = data.terraform_remote_state.shared.outputs.vpc_self_link
-}
-
 ############################################################
 # 백엔드(Backend) ASG - Blue/Green
 ############################################################
 
 # Blue
 # 1) Internal 전용 MIGs (Internal LB용)
+# Blue
 module "backend_internal_asg_blue" {
   source           = "../../modules/mig-asg"
   name             = "backend-internal-blue"
@@ -104,24 +112,27 @@ module "backend_internal_asg_blue" {
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
   machine_type     = "e2-medium"
-  desired          = 1
-  min              = 1
-  max              = 2
-  cpu_target       = 0.8
+  
+  # 동적 인스턴스 수 설정
+  desired    = var.blue_instance_count.desired
+  min        = var.blue_instance_count.min
+  max        = var.blue_instance_count.max
+  cpu_target = 0.8
 
-  startup_tpl      = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
-    deploy_ssh_public_key  = var.ssh_private_key
-    docker_image           = var.docker_image_backend_blue
-    use_ecr                = var.use_ecr
-    aws_region             = var.aws_region
-    aws_access_key_id      = var.aws_access_key_id
-    aws_secret_access_key  = var.aws_secret_access_key
+  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+    deploy_ssh_public_key = var.ssh_private_key
+    docker_image          = var.docker_image_backend_blue
+    use_ecr               = var.use_ecr
+    aws_region            = var.aws_region
+    aws_access_key_id     = var.aws_access_key_id
+    aws_secret_access_key = var.aws_secret_access_key
   })
+  
   health_check = module.hc_backend.self_link
-  tags = ["backend", "backend-hc","allow-vpn-ssh"]  # 헬스체크 태그 추가
-  port_http = 8080
+  tags         = ["backend", "backend-hc", "allow-vpn-ssh"]
+  port_http    = 8080
 }
-
+# Green
 module "backend_internal_asg_green" {
   source           = "../../modules/mig-asg"
   name             = "backend-internal-green"
@@ -129,24 +140,26 @@ module "backend_internal_asg_green" {
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
   machine_type     = "e2-medium"
-  desired          = 0
-  min              = 0
-  max              = 2
-  cpu_target       = 0.8
+  
+  # 동적 인스턴스 수 설정
+  desired    = var.green_instance_count.desired
+  min        = var.green_instance_count.min
+  max        = var.green_instance_count.max
+  cpu_target = 0.8
 
-  startup_tpl      = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
-    deploy_ssh_public_key  = var.ssh_private_key
-    docker_image           = var.docker_image_backend_green
-    use_ecr                = var.use_ecr
-    aws_region             = var.aws_region
-    aws_access_key_id      = var.aws_access_key_id
-    aws_secret_access_key  = var.aws_secret_access_key
+  startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
+    deploy_ssh_public_key = var.ssh_private_key
+    docker_image          = var.docker_image_backend_green
+    use_ecr               = var.use_ecr
+    aws_region            = var.aws_region
+    aws_access_key_id     = var.aws_access_key_id
+    aws_secret_access_key = var.aws_secret_access_key
   })
+  
   health_check = module.hc_backend.self_link
-  tags = ["backend", "backend-hc","allow-vpn-ssh"]
-  port_http = 8080
+  tags         = ["backend", "backend-hc", "allow-vpn-ssh"]
+  port_http    = 8080
 }
-
 
 ############################################################
 # 백엔드 Internal Load Balancer (8080)
@@ -196,7 +209,6 @@ module "backend_internal_lb" {
 ############################################################
 # 프론트엔드(Frontend) ASG - Blue/Green
 ############################################################
-
 # Blue
 module "frontend_asg_blue" {
   source           = "../../modules/mig-asg"
@@ -204,11 +216,13 @@ module "frontend_asg_blue" {
   region           = var.region
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
-  machine_type     = "e2-medium"
-  desired          = 1
-  min              = 1
-  max              = 2
-  cpu_target       = 0.8
+  machine_type     = "e2-small"
+  
+  # 동적 인스턴스 수 설정
+  desired    = var.blue_instance_count.desired
+  min        = var.blue_instance_count.min
+  max        = var.blue_instance_count.max
+  cpu_target = 0.8
 
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key = var.ssh_private_key
@@ -218,9 +232,10 @@ module "frontend_asg_blue" {
     aws_access_key_id     = var.aws_access_key_id
     aws_secret_access_key = var.aws_secret_access_key
   })
-  port_http = 80
-  health_check = module.hc_frontend.self_link
   
+  port_http    = 80
+  health_check = module.hc_frontend.self_link
+  tags         = ["allow-ssh-http", "allow-vpn-ssh"]
 }
 
 # Green
@@ -230,11 +245,13 @@ module "frontend_asg_green" {
   region           = var.region
   subnet_self_link = local.subnet_self_link
   disk_size_gb     = 20
-  machine_type     = "e2-medium"
-  desired          = 0
-  min              = 0
-  max              = 2
-  cpu_target       = 0.8
+  machine_type     = "e2-small"
+  
+  # 동적 인스턴스 수 설정
+  desired    = var.green_instance_count.desired
+  min        = var.green_instance_count.min
+  max        = var.green_instance_count.max
+  cpu_target = 0.8
 
   startup_tpl = templatefile("${path.module}/scripts/vm-install.sh.tpl", {
     deploy_ssh_public_key = var.ssh_private_key
@@ -244,15 +261,15 @@ module "frontend_asg_green" {
     aws_access_key_id     = var.aws_access_key_id
     aws_secret_access_key = var.aws_secret_access_key
   })
-  port_http = 80
+  
+  port_http    = 80
   health_check = module.hc_frontend.self_link
-  tags=["allow-ssh-http","allow-vpn-ssh"]
+  tags         = ["allow-ssh-http", "allow-vpn-ssh"]
 }
 
 ############################################################
 # External Backend/Frontend Target Group 생성 (HTTP LB 용)
 ############################################################
-
 module "backend_tg" {
   source       = "../../modules/target-group"
   name         = "backend-backend-group"
@@ -260,13 +277,13 @@ module "backend_tg" {
   backends = [
     {
       instance_group  = module.backend_internal_asg_blue.instance_group
-      weight          = 100
+      weight          = local.normalized_blue_weight  # 동적 가중치
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     },
     {
       instance_group  = module.backend_internal_asg_green.instance_group
-      weight          = 0
+      weight          = local.normalized_green_weight  # 동적 가중치
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     }
@@ -280,18 +297,19 @@ module "frontend_tg" {
   backends = [
     {
       instance_group  = module.frontend_asg_blue.instance_group
-      weight          = 100
+      weight          = local.normalized_blue_weight  # 동적 가중치
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     },
     {
       instance_group  = module.frontend_asg_green.instance_group
-      weight          = 0
+      weight          = local.normalized_green_weight  # 동적 가중치
       balancing_mode  = "UTILIZATION"
       capacity_scaler = 1.0
     }
   ]
 }
+
 
 ############################################################
 # 외부 HTTPS LB + URL Map (프론트엔드 기본, /api/* 백엔드)
