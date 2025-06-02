@@ -38,17 +38,6 @@ output "frontend_lb_ip" {
 }
 
 
-# 로드밸런서 정보
-output "load_balancer_info" {
-  description = "Load balancer information"
-  value = {
-    # external-https-lb 모듈에서 내보내는 ‘forwarding_rule_ip’ 를 사용
-    frontend_lb_ip = module.frontend_lb.forwarding_rule_ip
-
-    # internal-http-lb 모듈에서 내보내는 ‘forwarding_rule_ip’ 를 사용
-    backend_ilb_ip = module.backend_internal_lb.forwarding_rule_ip
-  }
-}
 # 인스턴스 그룹 정보
 output "instance_groups" {
   description = "Instance group information"
