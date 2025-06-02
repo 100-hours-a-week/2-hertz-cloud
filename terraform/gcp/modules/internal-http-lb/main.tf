@@ -26,6 +26,8 @@ resource "google_compute_region_backend_service" "this" {
       capacity_scaler = lookup(backend.value, "capacity_scaler", 1.0)
     }
   }
+  depends_on = [ google_compute_health_check.this ]
+  
 }
 
 
@@ -55,7 +57,7 @@ resource "google_compute_forwarding_rule" "this" {
   network               = var.vpc_self_link
   subnetwork            = var.proxy_subnet_self_link 
   #ip_address            = google_compute_address.internal_ip.address
-  ports                 = [var.port]      # 리스트 형식
+  port_range            = var.port
   target                = google_compute_region_target_http_proxy.this.self_link
   region                = var.region
 }
