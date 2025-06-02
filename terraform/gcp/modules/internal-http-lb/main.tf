@@ -55,8 +55,9 @@ resource "google_compute_forwarding_rule" "this" {
   name                  = "${var.backend_name_prefix}-fr"
   load_balancing_scheme = "INTERNAL_MANAGED"
   network               = var.vpc_self_link
-  subnetwork            = var.proxy_subnet_self_link 
-  #ip_address            = google_compute_address.internal_ip.address
+  // 수정: 로드 밸런서의 VIP가 할당될 일반 서브넷의 self_link를 사용
+  subnetwork            = var.subnet_self_link # 백엔드 VM이 위치한 서브넷 또는 다른 일반 서브넷
+  //ip_address          = google_compute_address.internal_ip.address // 주석 해제하여 특정 IP 지정 가능
   port_range            = var.port
   target                = google_compute_region_target_http_proxy.this.self_link
   region                = var.region
