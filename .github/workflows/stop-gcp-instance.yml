@@ -11,6 +11,7 @@ on:
         options:
           - "BE"
           - "AI"
+          - "GPU"
 
 env:
   PROJECT_ID: ${{ secrets.PROD_GCP_PROJECT_ID }}
@@ -22,6 +23,11 @@ env:
   DEV_INSTANCE: ${{ secrets.DEV_GCP_INSTANCE }}
   PROD_INSTANCE_AI: ${{ secrets.PROD_GCP_INSTANCE_AI }}
   DEV_INSTANCE_AI: ${{ secrets.DEV_GCP_INSTANCE_AI }}
+  PROD_INSTANCE_GPU: ${{ secrets.PROD_INSTANCE_GPU }}
+  PROJECT_ID_GPU: ${{ secrets.PROJECT_ID_GPU }}
+ 
+
+  
 
 jobs:
   stop-instance:
@@ -41,6 +47,10 @@ jobs:
             if [[ "$TARGET" == "AI" ]]; then
               echo "INSTANCE=${{ env.PROD_INSTANCE_AI }}" >> $GITHUB_ENV
               echo "ZONE=${{ env.PROD_ZONE_AI }}" >> $GITHUB_ENV
+            elif [[ "$TARGET" == "GPU" ]]; then
+              echo "PROJECT_ID=${{ env.PROJECT_ID_GPU }}" >> $GITHUB_ENV
+              echo "INSTANCE=${{ env.PROD_INSTANCE_GPU }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
             else
               echo "INSTANCE=${{ env.PROD_INSTANCE }}" >> $GITHUB_ENV
               echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
@@ -51,6 +61,10 @@ jobs:
             if [[ "$TARGET" == "AI" ]]; then
               echo "INSTANCE=${{ env.DEV_INSTANCE_AI }}" >> $GITHUB_ENV
               echo "ZONE=${{ env.DEV_ZONE_AI }}" >> $GITHUB_ENV
+            elif [[ "$TARGET" == "GPU" ]]; then
+              echo "PROJECT_ID=${{ env.PROJECT_ID_GPU }}" >> $GITHUB_ENV
+              echo "INSTANCE=${{ env.PROD_INSTANCE_GPU }}" >> $GITHUB_ENV
+              echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
             else
               echo "INSTANCE=${{ env.DEV_INSTANCE }}" >> $GITHUB_ENV
               echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
@@ -58,16 +72,22 @@ jobs:
           fi
 
       - name: Authenticate to GCP
-        if: github.ref_name == 'main'
+        if: github.ref_name == 'main' && github.event.inputs.target != 'GPU'
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.PROD_GCP_SA_KEY }}
 
       - name: Authenticate to GCP (develop)
-        if: github.ref_name != 'main'
+        if: github.ref_name != 'main' && github.event.inputs.target != 'GPU'
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.DEV_GCP_SA_KEY }}
+      
+      - name: Authenticate to GCP GPU
+        if: github.event.inputs.target == 'GPU'
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.PROD_GPU_SA_KEY }}
 
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v1
