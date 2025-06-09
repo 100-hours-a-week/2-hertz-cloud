@@ -44,18 +44,33 @@ output "instance_groups" {
 }
 
 # ASG 인스턴스 크기 정보
-output "blue_instance_count" {
-  value = var.blue_instance_count
+output "blue_instance_count_frontend" {
+  value = var.blue_instance_count_frontend
+}
+output "blue_instance_count_backend" {
+  value = var.blue_instance_count_backend
 }
 
-output "green_instance_count" {
-  value = var.green_instance_count
+output "green_instance_count_frontend" {
+  value = var.green_instance_count_frontend
 }
 
-output "traffic_weight_blue" {
-  value = var.traffic_weight_blue
+output "green_instance_count_backend" {
+  value = var.green_instance_count_backend
 }
 
-output "traffic_weight_green" {
-  value = var.traffic_weight_green
+output "traffic_weight_blue_frontend" {
+  value = var.traffic_weight_blue_frontend
+}
+
+output "traffic_weight_blue_backend" {
+  value = var.traffic_weight_blue_backend
+}
+
+output "traffic_weight_green_frontend" {
+  value = var.traffic_weight_green_frontend
+}
+
+output "traffic_weight_green_backend" {
+  value = var.traffic_weight_green_backend
 }
