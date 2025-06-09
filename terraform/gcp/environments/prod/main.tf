@@ -63,7 +63,7 @@ resource "google_compute_router_nat" "nat" {
 }
 
 locals {
-  nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_b_subnet_info
+  nat_subnet_info = data.terraform_remote_state.shared.outputs.nat_subnet_info
   firewall_rules  = data.terraform_remote_state.shared.outputs.firewall_rules
 
   region           = var.region
@@ -80,11 +80,6 @@ locals {
   external_lb_ip = data.terraform_remote_state.shared.outputs.prod_external_lb_ip_address
   external_lb_ip_self_link = data.terraform_remote_state.shared.outputs.prod_external_lb_ip_self_link
   
-  # 트래픽 가중치 검증
-  # total_weight            = var.traffic_weight_blue + var.traffic_weight_green
-  # normalized_blue_weight  = local.total_weight > 0 ? (var.traffic_weight_blue * 100 / local.total_weight) : 0
-  # normalized_green_weight = local.total_weight > 0 ? (var.traffic_weight_green * 100 / local.total_weight) : 0
-
   ilb_proxy_subnet_self_link = data.terraform_remote_state.shared.outputs.ilb_proxy_subnet_self_link
   mysql_data_disk_self_link = data.terraform_remote_state.shared.outputs.prod_mysql_data_disk_self_link
 
@@ -104,9 +99,8 @@ module "backend_internal_asg_blue" {
   disk_size_gb     = 30
   machine_type     = "e2-medium"
   # 동적 인스턴스 수 설정
-  # desired    = var.blue_instance_count.desired
-  min        = var.blue_instance_count.min
-  max        = var.blue_instance_count.max
+  min        = var.blue_instance_count_backend.min
+  max        = var.blue_instance_count_backend.max
   cpu_target = 0.8
 
   startup_tpl = join("\n", [
@@ -192,14 +186,12 @@ module "internal_lb" {
     {
       instance_group  = module.backend_internal_asg_blue.instance_group
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_blue / 100.0
+      capacity_scaler = var.traffic_weight_blue_backend / 100.0
     },
     {
       instance_group  = module.backend_internal_asg_green.instance_group
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_green / 100.0
+      capacity_scaler = var.traffic_weight_green_backend / 100.0
     }
   ]
   backend_hc_port     = 8080
@@ -224,9 +216,8 @@ module "frontend_asg_blue" {
   machine_type     = "e2-small"
   
   # 동적 인스턴스 수 설정
-  # desired    = var.blue_instance_count.desired
-  min        = var.blue_instance_count.min
-  max        = var.blue_instance_count.max
+  min        = var.blue_instance_count_frontend.min
+  max        = var.blue_instance_count_frontend.max
   cpu_target = 0.8
 
   startup_tpl = join("\n", [
@@ -292,48 +283,38 @@ module "frontend_asg_green" {
 ############################################################
 module "backend_tg" {
   source       = "../../modules/target-group"
-  description  = "Traffic: blue ${var.traffic_weight_blue}% / green ${var.traffic_weight_green}%"
+  description  = "Traffic: blue ${var.traffic_weight_blue_backend}% / green ${var.traffic_weight_green_backend}%"
   name         = "${var.env}-backend-tg"
   health_check = local.hc_backend
   backends = [
     {
       instance_group  = module.backend_internal_asg_blue.instance_group
-      # weight          = local.normalized_blue_weight
-      # weight          = var.traffic_weight_blue
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_blue / 100.0
+      capacity_scaler = var.traffic_weight_blue_backend / 100.0
     },
     {
       instance_group  = module.backend_internal_asg_green.instance_group
-      # weight          = local.normalized_green_weight
-      # weight          = var.traffic_weight_green
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_green / 100.0
+      capacity_scaler = var.traffic_weight_green_backend / 100.0
     }
   ]
 }
 
 module "frontend_tg" {
   source       = "../../modules/target-group"
-  description  = "Traffic: blue ${var.traffic_weight_blue}% / green ${var.traffic_weight_green}%"
+  description  = "Traffic: blue ${var.traffic_weight_blue_frontend}% / green ${var.traffic_weight_green_frontend}%"
   name         = "${var.env}-frontend-tg"
   health_check = local.hc_frontend
   backends = [
     {
       instance_group  = module.frontend_asg_blue.instance_group
-      # weight          = local.normalized_blue_weight
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_blue / 100.0
+      capacity_scaler = var.traffic_weight_blue_frontend / 100.0
     },
     {
       instance_group  = module.frontend_asg_green.instance_group
-      # weight          = local.normalized_green_weight
       balancing_mode  = "UTILIZATION"
-      # capacity_scaler = 1.0
-      capacity_scaler = var.traffic_weight_green / 100.0
+      capacity_scaler = var.traffic_weight_green_frontend / 100.0
     }
   ]
 }

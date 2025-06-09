@@ -130,30 +130,52 @@ variable "active_deployment" {
   }
 }
 
-variable "traffic_weight_blue" {
+variable "traffic_weight_blue_frontend" {
   description = "Traffic weight for blue deployment (0-100)"
   type        = number
   default     = 100
   
   validation {
-    condition     = var.traffic_weight_blue >= 0 && var.traffic_weight_blue <= 100
+    condition     = var.traffic_weight_blue_frontend >= 0 && var.traffic_weight_blue_frontend <= 100
     error_message = "Traffic weight must be between 0 and 100."
   }
 }
 
-variable "traffic_weight_green" {
+variable "traffic_weight_blue_backend" {
+  description = "Traffic weight for blue deployment (0-100)"
+  type        = number
+  default     = 100
+  
+  validation {
+    condition     = var.traffic_weight_blue_backend >= 0 && var.traffic_weight_blue_backend <= 100
+    error_message = "Traffic weight must be between 0 and 100."
+  }
+}
+
+variable "traffic_weight_green_frontend" {
   description = "Traffic weight for green deployment (0-100)"
   type        = number
   default     = 0
   
   validation {
-    condition     = var.traffic_weight_green >= 0 && var.traffic_weight_green <= 100
+    condition     = var.traffic_weight_green_frontend >= 0 && var.traffic_weight_green_frontend <= 100
+    error_message = "Traffic weight must be between 0 and 100."
+  }
+}
+
+variable "traffic_weight_green_backend" {
+  description = "Traffic weight for green deployment (0-100)"
+  type        = number
+  default     = 0
+  
+  validation {
+    condition     = var.traffic_weight_green_backend >= 0 && var.traffic_weight_green_backend <= 100
     error_message = "Traffic weight must be between 0 and 100."
   }
 }
 
 # ASG 크기 제어
-variable "blue_instance_count" {
+variable "blue_instance_count_frontend" {
   description = "Number of instances for blue deployment"
   type = object({
     # desired = number
@@ -167,7 +189,21 @@ variable "blue_instance_count" {
   }
 }
 
-variable "green_instance_count" {
+variable "blue_instance_count_backend" {
+  description = "Number of instances for blue deployment"
+  type = object({
+    # desired = number
+    min     = number
+    max     = number
+  })
+  default = {
+    # desired = 1
+    min     = 1
+    max     = 2
+  }
+}
+
+variable "green_instance_count_frontend" {
   description = "Number of instances for green deployment"
   type = object({
     # desired = number
@@ -181,6 +217,19 @@ variable "green_instance_count" {
   }
 }
 
+variable "green_instance_count_backend" {
+  description = "Number of instances for green deployment"
+  type = object({
+    # desired = number
+    min     = number
+    max     = number
+  })
+  default = {
+    # desired = 0
+    min     = 0
+    max     = 0
+  }
+}
 
 variable "mysql_root_password" {
   description = "MySQL root 사용자 비밀번호"
