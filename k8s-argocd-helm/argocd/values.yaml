@@ -2,12 +2,26 @@
 
 ## ArgoCD Server
 server:
+  # ArgoCD 서버 설정 (ALB용)
+  extraArgs:
+    - --insecure  # ALB에서 TLS 종료하므로 insecure 모드
   # Service Account with IRSA for ECR access
   serviceAccount:
     create: true
     name: argocd-server-sa
     annotations:
       eks.amazonaws.com/role-arn: "arn:aws:iam::969400486509:role/argocd-ecr-access-role"
+  
+  # LoadBalancer 서비스 설정 (ALB with HTTPS redirect)
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "alb"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+      service.beta.kubernetes.io/aws-load-balancer-listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:969400486509:certificate/0923e90f-18b8-4f6c-b33f-878e9d00cfbf"
+      service.beta.kubernetes.io/aws-load-balancer-ssl-redirect: "443"
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "HTTPS"
   
   # Resources
   resources:
