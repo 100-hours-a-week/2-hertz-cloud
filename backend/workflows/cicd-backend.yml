@@ -4,9 +4,11 @@ on:
   pull_request:
     types: [closed] # PR이 닫혔을 때 (병합 포함)
     branches:
-      - main # main 브랜치로 Merge 시 -> PROD 환경에 배포
+      # - main # main 브랜치로 Merge 시 -> PROD 환경에 배포
       - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
-
+    paths-ignore:
+      - .github/workflows/** # 워크플로우 파일 변경은 배포 트리거하지 않음
+      - Dockerfile # Dockerfile 변경은 배포 트리거하지 않음
   # ✅ 수동 `실행 트리거 추가
   workflow_dispatch:
     inputs:
@@ -17,7 +19,7 @@ on:
         type: choice
         options:
           - DEV
-          - PROD
+          # - PROD
 
 jobs:
   backend-cd:
@@ -59,6 +61,8 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
+            echo "⚠️ 해당 스크립트에서 사용하는 PROD는 SSH 서버로 더 이상 사용하지 않습니다."
+            exit 1
             echo "ENV=PROD" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST" HOST
             load_param "/global/gcp/PROD_GCP_INSTANCE" INSTANCE
@@ -143,18 +147,18 @@ jobs:
             CHECK_URL="http://${{ env.HOST }}:8080/api/ping"
           fi
 
-          for i in {1..5}; do
+          for i in {1..15}; do
             echo "⏱️ 시도 $i: $CHECK_URL"
             if curl -sf "$CHECK_URL"; then
               echo "✅ 헬스체크 성공"
               exit 0
             else
               echo "::error::헬스체크 시도 $i 실패"
-              sleep 15
+              sleep 30
             fi
           done
 
-          echo "::error::❌ 3회 헬스체크 실패"
+          echo "::error::❌ 15회 헬스체크 실패"
           exit 1
 
       - name: Send failure notification
@@ -163,7 +167,7 @@ jobs:
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"❌ [BE 배포 실패] **${{ env.ENV }}** Backend 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\\n⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
+            -d "{\"content\": \"❌ **[${{ env.ENV }} 환경]** BE 배포 실패(자동)\\n> Branch: \`${{ env.BRANCH }}\`\\n> Commit: ${{ env.COMMIT_HASH }}\\n> [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send success notification
@@ -171,7 +175,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"🚀 [BE 배포 완료] **${{ env.ENV }}** Backend 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\"}" \
+            -d "{\"content\": \"🚀 **[${{ env.ENV }} 환경]** BE 배포 완료(자동)\\n> Branch: \`${{ env.BRANCH }}\`\\n> Commit: ${{ env.COMMIT_HASH }}\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
   backend-rollback:
@@ -243,12 +247,11 @@ jobs:
         uses: google-github-actions/auth@v1
         with:
           credentials_json: "${{ env.SA_KEY }}"
-
       - name: Send rollback start notification
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"🔄 [BE 롤백 시작] \`${{ env.ENV }}\` 환경에서 롤백을 실행합니다.\"}" \
+            -d "{\"content\": \"🔄 **[${{ env.ENV }} 환경]** BE 롤백을 실행합니다(자동)\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: SSH into server and rollback
@@ -276,14 +279,14 @@ jobs:
             CHECK_URL="http://${HOST}:8080/api/ping"
           fi
 
-          for i in {1..5}; do
+          for i in {1..15}; do
             echo "⏱️ 시도 $i: $CHECK_URL"
             if curl -sf "$CHECK_URL"; then
               echo "(Rollback) ✅ 헬스체크 성공 🎉"
               exit 0
             else
               echo "::error::헬스체크 시도 $i 실패"
-              sleep 15
+              sleep 30
             fi
           done
 
@@ -295,7 +298,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"✅ [BE 롤백 완료] \`${{ env.ENV }}\` 환경\"}" \
+            -d "{\"content\": \"✅ **[${{ env.ENV }} 환경]** BE 롤백 완료(자동)\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send failure notification
@@ -303,5 +306,5 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"❌ [BE 롤백 실패] \`${{ env.ENV }}\` 환경\"}" \
+            -d "{\"content\": \"❌ **[${{ env.ENV }} 환경]** BE 롤백 실패(자동)\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}

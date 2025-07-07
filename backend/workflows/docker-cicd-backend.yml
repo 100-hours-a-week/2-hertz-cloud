@@ -1,4 +1,4 @@
-name: Backend Docker CI/CD
+name: CI/CD Backend (DOCKER)
 
 on:
   pull_request:
@@ -7,19 +7,17 @@ on:
       - main
       - develop
     paths-ignore:
-      - .github/workflows/cicd-backend.yml
-      - .github/workflows/k8s-backend-cicd.yml
+      - ".github/workflows/**"
 
   workflow_dispatch:
     inputs:
       redirect_url:
-        description: "(DEV일 때만 선택!) Redirect URL"
+        description: "(STAGE 일 때만 선택!) Redirect URL"
         required: true
-        default: "dev"
+        default: "stage"
         type: choice
         options:
           - local
-          - dev
           - stage
 
 jobs:
@@ -57,7 +55,7 @@ jobs:
         run: |
 
           if [ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]; then
-            BRANCH="${{ github.event.inputs.env }}"
+            BRANCH="${{ github.ref_name }}"
               else
             BRANCH="${{ github.ref_name }}"
           fi
@@ -70,8 +68,10 @@ jobs:
 
           if [ "$BRANCH" = "main" ]; then
             ENV_TAG="prod-latest"
+            echo "ENV=PROD" >> $GITHUB_ENV
           else
             ENV_TAG="develop-latest"
+            echo "ENV=STAGE" >> $GITHUB_ENV
           fi
 
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
@@ -171,7 +171,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"✅ [BE 도커 CI 성공] **${{ env.BRANCH }}** 브랜치\\n> 태그: ${{ env.IMAGE_TAG }}\\n> Commit: ${{ env.SHORT_SHA }}\\n> 이미지: ${{ env.FULL_IMAGE }}\"}" \
+              -d "{\"content\": \"✅ **[${{ env.ENV }} 환경]** Docker BE **CI** 성공\\n> Branch: \`${{ env.BRANCH }}\`)\\n> Commit: ${{ env.SHORT_SHA }}\\n> 이미지: ${{ env.FULL_IMAGE }}\"}" \
               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       # 7. 실패 알림
@@ -181,7 +181,7 @@ jobs:
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"❌ [BE 도커 CI 실패] **${{ env.BRANCH }}** 브랜치\\n> Commit: ${{ env.SHORT_SHA }}\\n⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
+              -d "{\"content\": \"❌ **[${{ env.ENV }} 환경]** Docker BE **CI** 실패\\n> Branch: \`${{ env.BRANCH }}\`)\\n> Commit: ${{ env.SHORT_SHA }}\\n> [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
   backend-cd:
@@ -228,13 +228,14 @@ jobs:
             echo "$VALUE" > "$2"
           }
 
-          BRANCH="${{ env.BRANCH }}"
+
+          BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=PROD" >> $GITHUB_ENV
             load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY_DOCKER" gcp-sa-key.json
           else
-            echo "ENV=DEV" >> $GITHUB_ENV
+            echo "ENV=STAGE" >> $GITHUB_ENV
             load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY_DOCKER" gcp-sa-key.json
           fi
 
@@ -278,19 +279,21 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
           terraform version
 
-      # DEV 환경에서 FE 개발을 위한 Redirec URL 변경 로직
+      # STAGE 환경에서 FE 개발을 위한 Redirec URL 변경 로직
       - name: Update SSM parameter
-        if: env.ENV == 'DEV'
+        if: env.ENV == 'STAGE'
         run: |
-          if [[ "${{ github.event.inputs.redirect_url }}" == "local" ]]; then
-            REDIRECT_URL="${{ secrets.REDIRECT_URL_LOCAL }}"
-          elif [[ "${{ github.event.inputs.redirect_url }}" == "dev" ]]; then
-            REDIRECT_URL="${{ secrets.REDIRECT_URL_DEV }}"
-          elif [[ "${{ github.event.inputs.redirect_url }}" == "stage" ]]; then
-            REDIRECT_URL="${{ secrets.REDIRECT_URL_APP }}"
+
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+            if [[ "${{ github.event.inputs.redirect_url }}" == "local" ]]; then
+              REDIRECT_URL="${{ secrets.REDIRECT_URL_LOCAL }}"
+            elif [[ "${{ github.event.inputs.redirect_url }}" == "stage" ]]; then
+              REDIRECT_URL="${{ secrets.REDIRECT_URL_APP }}"
+            else
+              REDIRECT_URL="${{ secrets.REDIRECT_URL_APP }}"
+            fi
           else
-            echo "[ERROR]Redirect URL을 선택해주세요."
-            exit 1
+            REDIRECT_URL="${{ secrets.REDIRECT_URL_APP }}"
           fi
 
           aws ssm put-parameter \
@@ -300,7 +303,7 @@ jobs:
             --overwrite
 
       - name: Check if backend_tg exists and fallback to full apply
-        if: env.ENV == 'DEV'
+        if: env.ENV == 'STAGE'
         working-directory: tf-code/terraform/gcp/environments/develop
         run: |
           terraform init -reconfigure
@@ -315,7 +318,7 @@ jobs:
           fi
 
       - name: Deploy to Dev Environment
-        if: env.ENV == 'DEV'
+        if: env.ENV == 'STAGE'
         working-directory: tf-code/terraform/gcp/environments/develop
         run: |
           terraform init -reconfigure
@@ -334,7 +337,7 @@ jobs:
           terraform output -json
 
       - name: Check MIG Health (Dev)
-        if: env.ENV == 'DEV'
+        if: env.ENV == 'STAGE'
         env:
           REGION: asia-east1 # DEV 환경에 맞게 수정
         run: |
@@ -544,7 +547,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"✅ [BE 도커 CD 성공] **${{ env.BRANCH }}** 브랜치\\n> 이미지: ${{ env.IMAGE }}\\n> Commit: ${{ env.SHORT_SHA }}\\n\"}" \
+              -d "{\"content\": \"✅ **[${{ env.ENV }} 환경]** Docker BE **CD** 성공\\n> Branch: \`${{ env.BRANCH }}\`)\\n> Commit: ${{ env.SHORT_SHA }}\\n> 이미지: ${{ env.FULL_IMAGE }}\"}" \
               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Notify Discord on Failure
@@ -553,7 +556,7 @@ jobs:
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
               -X POST \
-              -d "{\"content\": \"❌ [BE 도커 CD 실패] **${{ env.BRANCH }}** 브랜치\\n> 이미지: ${{ env.IMAGE }}\\n> Commit: ${{ env.SHORT_SHA }}\\n> ⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
+              -d "{\"content\": \"❌ **[${{ env.ENV }} 환경]** Docker BE **CD** 실패\\n> Branch: \`${{ env.BRANCH }}\`)\\n> Commit: ${{ env.SHORT_SHA }}\\n> [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
   backend-rollback:
@@ -597,24 +600,18 @@ jobs:
             echo "ENV=PROD" >> $GITHUB_ENV
             load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY_DOCKER" gcp-sa-key.json
           else
-            echo "ENV=DEV" >> $GITHUB_ENV
+            echo "ENV=STAGE" >> $GITHUB_ENV
             load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY_DOCKER" gcp-sa-key.json
           fi
 
           load_param "/global/GITHUB_TOKEN" GITHUB_TOKEN
           load_param "/global/TFC_TOKEN" TF_TOKEN_app_terraform_io
 
-          if [ ${{ env.BRANCH }} = main ]; then
-            echo "ENV=PROD" >> $GITHUB_ENV
-          else
-            echo "ENV=DEV" >> $GITHUB_ENV
-          fi
-
-      - name: Notify for Dev Rollback
-        if: env.ENV == 'DEV'
+      - name: Notify for STAGE Rollback
+        if: env.ENV == 'STAGE'
         run: |
-          echo "❗DEV 환경 배포에 실패했습니다."
-          echo "❗DEV 환경은 Blue/Green 배포가 아니므로 자동 롤백 작업이 없습니다."
+          echo "❗STAGE 환경 배포에 실패했습니다."
+          echo "❗STAGE 환경은 Blue/Green 배포가 아니므로 자동 롤백 작업이 없습니다."
           echo "❗GCP 콘솔에서 'dev-backend-a' Managed Instance Group의 상태를 직접 확인해주세요."
 
       - name: Checkout Terraform repo
@@ -647,11 +644,11 @@ jobs:
           terraform -version
 
       - name: Send rollback start notification
-        if: env.ENV == 'PROD'
+        if: env.ENV == 'STAGE'
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"🔄 [BE 도커 롤백 시작] \`(Docker) ${{ env.ENV }}\` 환경에서 롤백을 실행합니다.\"}" \
+            -d "{\"content\": \"🔄 **[${{ env.ENV }} 환경]** Docker BE 롤백을 실행합니다\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Write tfvars file for rollback
@@ -684,7 +681,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"✅ [BE 도커 롤백 완료] \`(Docker) ${{ env.ENV }}\` 환경\"}" \
+            -d "{\"content\": \"✅ **[${{ env.ENV }} 환경]** Docker BE 롤백 완료\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send failure notification
@@ -692,5 +689,5 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
-            -d "{\"content\": \"❌ [BE 도커 롤백 실패] \`(Docker) ${{ env.ENV }}\` 환경\"}" \
+            -d "{\"content\": \"❌ **[${{ env.ENV }} 환경]** Docker BE 롤백 실패\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
