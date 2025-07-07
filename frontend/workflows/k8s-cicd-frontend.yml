@@ -190,15 +190,15 @@ jobs:
       - name: Notify success
         if: success()
         run: |
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "{\"content\": \"✅ [K8s FE 롤링 배포 성공] **${{ github.ref_name }}**\\n> 이미지: ${{ needs.frontend-ci.outputs.IMAGE_TAG }}\\n> Commit: ${{ needs.backend-ci.outputs.SHORT_SHA }}\"}" \
-               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+              curl -H "Content-Type: application/json" \
+                   -X POST \
+                   -d "{\"content\": \"✅ [K8s FE 롤링 배포 성공] **${{ github.ref_name }}**\"}" \
+                   "${{ secrets.DISCORD_WEBHOOK_CICD_URL }}"
 
       - name: Notify failure
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
-               -d "{\"content\": \"❌ [K8s FE 롤링 배포 실패] **${{ github.ref_name }}**\\n> Commit: ${{ needs.frontend-ci.outputs.SHORT_SHA }}\"}" \
+               -d "{\"content\": \"❌ [K8s FE 롤링 배포 실패] **${{ github.ref_name }}**\"}" \
                ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}

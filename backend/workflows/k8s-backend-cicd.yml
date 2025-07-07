@@ -156,7 +156,25 @@ jobs:
           
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+      
+      
+      - name: Notify Discord on Success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"✅ [k8s BE CI 성공] **${{ env.BRANCH }}** 브랜치\\n> 태그: ${{ env.IMAGE_TAG }}\\n> Commit: ${{ env.SHORT_SHA }}\\n> 이미지: ${{ env.FULL_IMAGE }}\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
+      
+      - name: Notify Discord on Failure
+        if: failure()
+        run: |
+          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"❌ [k8s BE CI 실패] **${{ env.BRANCH }}** 브랜치\\n> Commit: ${{ env.SHORT_SHA }}\\n⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
   deployment-monitor:
     needs: backend-ci
     runs-on: ubuntu-latest
@@ -199,7 +217,7 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
-               -d "{\"content\": \"✅ [K8s BE 롤링 배포 성공] **${{ github.ref_name }}**\\n> 이미지: ${{ needs.backend-ci.outputs.IMAGE_TAG }}\\n> Commit: ${{ needs.backend-ci.outputs.SHORT_SHA }}\"}" \
+               -d "{\"content\": \"✅ [K8s BE 롤링 배포 성공] **${{ github.ref_name }}**\"}" \
                ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Notify failure
@@ -207,5 +225,5 @@ jobs:
         run: |
           curl -H "Content-Type: application/json" \
                -X POST \
-               -d "{\"content\": \"❌ [K8s BE 롤링 배포 실패] **${{ github.ref_name }}**\\n> Commit: ${{ needs.backend-ci.outputs.SHORT_SHA }}\"}" \
+               -d "{\"content\": \"❌ [K8s BE 롤링 배포 실패] **${{ github.ref_name }}**\"}" \
                ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
