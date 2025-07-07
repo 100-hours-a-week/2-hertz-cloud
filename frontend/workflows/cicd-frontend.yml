@@ -6,6 +6,9 @@ on:
     branches:
       - main # main 브랜치로 Merge 시 -> PROD 환경에 배포
       - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
+    paths-ignore:
+      - "Dockerfie"
+      - ".github/workflows/**"
 
   # ✅ 수동 `실행 트리거 추가
   workflow_dispatch:

@@ -1,0 +1,204 @@
+name: k8s Frontend CI/CD
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - ".github/workflows/cicd-frontend.yml"
+      - ".github/workflows/docker-cicd-frontend.yml"
+
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "배포 환경 선택"
+        required: true
+        default: "브랜치를 확인해주세요!"
+        type: choice
+        options:
+          - main
+          - develop
+
+jobs:
+  frontend-ci:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    outputs:
+      BRANCH: ${{ steps.generate-tags.outputs.BRANCH }}
+      SHORT_SHA: ${{ steps.generate-tags.outputs.SHORT_SHA }}
+      FULL_IMAGE: ${{ steps.generate-tags.outputs.FULL_IMAGE }}
+    runs-on: ubuntu-latest
+    steps:
+      # ✅ act 테스트용 명령어: act workflow_dispatch -W .github/workflows/docker-cicd-frontend.yml -P ubuntu-latest=docker.io/ddongu/act-runner-terraform:latest
+      # 1. 소스 코드 Checkout
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      # 2. AWS 인증
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. ECR 로그인
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      
+      - name: Set environment variables from SSM
+        run: |
+          load_param() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
+            echo "::add-mask::$VALUE"
+            echo "$2=$VALUE" >> $GITHUB_ENV
+          }
+
+          load_secret_to_file() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --output json | jq -r .Parameter.Value)
+
+            echo "$VALUE" | while IFS= read -r line; do
+              echo "::add-mask::$line"
+            done
+
+            echo "$VALUE" > "$2"
+          }
+          BRANCH="${{ github.ref_name }}"
+          if [[ "$BRANCH" == "main" ]]; then
+            load_param "/global/k8s/nextjs/prod/NEXT_PUBLIC_API_BASE_URL" NEXT_PUBLIC_API_BASE_URL
+          else
+            load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_API_BASE_URL" NEXT_PUBLIC_API_BASE_URL
+          fi
+
+
+      # 4. 태그 정보 생성
+      - name: Generate image tags
+        id: generate-tags
+        run: |
+
+          if [ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]; then
+            BRANCH="${{ github.event.inputs.env }}"
+              else
+            BRANCH="${{ github.ref_name }}"
+          fi
+         
+          SANITIZED_BRANCH="${BRANCH//\//-}"
+          SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
+          BRANCH="$SANITIZED_BRANCH"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE_TAG="k8s-${BRANCH}-${SHORT_SHA}"
+
+          if [ "$BRANCH" = "main" ]; then
+            ENV_TAG="k8s-main-latest"
+          else
+            ENV_TAG="k8s-develop-latest"
+          fi
+
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "ENV_TAG=$ENV_TAG" >> $GITHUB_ENV
+          echo "BRANCH=$BRANCH" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+          echo "::add-mask::${{ env.IMAGE_TAG }}"
+          echo "::add-mask::${{ env.ENV_TAG }}"
+
+      # 5. Docker 빌드 및 푸시
+      - name: Build and push Docker image
+        run: |
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY=tuning-nextjs
+
+          echo "🏗️ Docker 이미지 빌드 시작..."
+
+          docker build \
+            --platform linux/amd64 \
+            --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
+            --cache-to=type=inline \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }} \
+            -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
+            .
+          docker tag $ECR_REGISTRY/$REPOSITORY:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$REPOSITORY:${{ env.ENV_TAG }}
+
+          echo "📤 Docker 이미지 푸시 중..."
+          docker push $ECR_REGISTRY/$REPOSITORY:${{ env.IMAGE_TAG }}
+          docker push $ECR_REGISTRY/$REPOSITORY:${{ env.ENV_TAG }}
+
+          echo "FULL_IMAGE=$ECR_REGISTRY/$REPOSITORY:${{ env.IMAGE_TAG }}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_OUTPUT
+          echo "::add-mask::${{ env.FULL_IMAGE }}"
+
+      # 6. 성공 알림
+      - name: Notify Discord on Success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"✅ [k8s FE CI 성공] **${{ env.BRANCH }}** 브랜치\\n> 태그: ${{ env.IMAGE_TAG }}\\n> Commit: ${{ env.SHORT_SHA }}\\n> 이미지: ${{ env.FULL_IMAGE }}\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+
+      # 7. 실패 알림
+      - name: Notify Discord on Failure
+        if: failure()
+        run: |
+          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"content\": \"❌ [k8s FE CI 실패] **${{ env.BRANCH }}** 브랜치\\n> Commit: ${{ env.SHORT_SHA }}\\n⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+  deployment-monitor:
+    needs: frontend-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Wait for Image Updater
+        run: |
+          echo "⏳ ArgoCD Image Updater가 ECR 이미지를 감지할 때까지 대기..."
+          sleep 180
+
+      - name: Verify deployment
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          EKS_CLUSTER: ${{ secrets.EKS_CLUSTER_NAME }}    # ex: tuning-eks
+        run: |
+          echo "🔑 kubeconfig 설정 중..."
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER"
+          
+          echo "🚀 nextjs-fe 디플로이먼트 롤아웃 상태 확인..."
+          kubectl rollout status deployment/nextjs-fe \
+            -n hertz-tuning-dev \
+            --timeout=180s
+
+          echo "🔍 현재 파드 상태:"
+          kubectl get pods \
+            -l app=nextjs-fe \
+            -n hertz-tuning-dev \
+            -o wide
+
+      - name: Notify success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"✅ [K8s FE 롤링 배포 성공] **${{ github.ref_name }}**\\n> 이미지: ${{ needs.frontend-ci.outputs.IMAGE_TAG }}\\n> Commit: ${{ needs.backend-ci.outputs.SHORT_SHA }}\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"❌ [K8s FE 롤링 배포 실패] **${{ github.ref_name }}**\\n> Commit: ${{ needs.frontend-ci.outputs.SHORT_SHA }}\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
