@@ -70,9 +70,15 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           if [[ "$BRANCH" == "main" ]]; then
             load_param "/global/k8s/nextjs/prod/NEXT_PUBLIC_API_BASE_URL" NEXT_PUBLIC_API_BASE_URL
-          else
-            load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_API_BASE_URL" NEXT_PUBLIC_API_BASE_URL
-          fi
+              load_param "/global/k8s/nextjs/prod/NEXT_PUBLIC_WEBSOCKET_URL" NEXT_PUBLIC_WEBSOCKET_URL
+              load_param "/global/k8s/nextjs/prod/NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE" NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE
+              load_param "/global/k8s/nextjs/prod/NEXT_PUBLIC_GUEST_INVITATION_CODE" NEXT_PUBLIC_GUEST_INVITATION_CODE
+            else
+              load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_API_BASE_URL" NEXT_PUBLIC_API_BASE_URL
+              load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_WEBSOCKET_URL" NEXT_PUBLIC_WEBSOCKET_URL
+              load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE" NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE
+              load_param "/global/k8s/nextjs/dev/NEXT_PUBLIC_GUEST_INVITATION_CODE" NEXT_PUBLIC_GUEST_INVITATION_CODE
+            fi
 
 
       # 4. 태그 정보 생성
@@ -110,19 +116,25 @@ jobs:
 
       # 5. Docker 빌드 및 푸시
       - name: Build and push Docker image
+        env:
+          DOCKER_BUILDKIT: 1
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           REPOSITORY=tuning-nextjs
 
           echo "🏗️ Docker 이미지 빌드 시작..."
-
+          export DOCKER_BUILDKIT=1
           docker build \
-            --platform linux/amd64 \
-            --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
-            --cache-to=type=inline \
-            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }} \
-            -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
-            .
+              --platform linux/amd64 \
+              --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
+              --cache-to=type=inline \
+              --build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }} \
+              --build-arg NEXT_PUBLIC_WEBSOCKET_URL=${{ env.NEXT_PUBLIC_WEBSOCKET_URL }} \
+              --build-arg NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE=${{ env.NEXT_PUBLIC_KAKAOTECH_INVITATION_CODE }} \
+              --build-arg NEXT_PUBLIC_GUEST_INVITATION_CODE=${{ env.NEXT_PUBLIC_GUEST_INVITATION_CODE }} \
+              -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
+              -f Dockerfile \
+              .
           docker tag $ECR_REGISTRY/$REPOSITORY:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$REPOSITORY:${{ env.ENV_TAG }}
 
           echo "📤 Docker 이미지 푸시 중..."

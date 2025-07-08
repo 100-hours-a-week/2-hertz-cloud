@@ -124,13 +124,14 @@ jobs:
           REPOSITORY="tuning-${{ inputs.service == 'backend' && 'springboot' || 'nextjs' }}"
           IMAGE_TAG="${{ inputs.image_tag }}"
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-
+          ENV_TAG="${{ inputs.target_branch == 'main' && 'k8s-main-latest' || 'k8s-develop-latest' }}"
           echo "🏷️ Tagging image as $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
           docker tag "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" \
-                     "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
+                     "$ECR_REGISTRY/$REPOSITORY:$ENV_TAG"
 
           echo "📤 Pushing to ECR: $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
           docker push "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$REPOSITORY:$ENV_TAG"
 
           echo "✅ Image re-pushed with tag: $IMAGE_TAG"
 
