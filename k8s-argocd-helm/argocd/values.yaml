@@ -1,5 +1,16 @@
 # ArgoCD Helm Chart Values for EKS (Port-forward access)
 
+# Global settings
+global:
+  repoURL: https://github.com/100-hours-a-week/2-hertz-cloud.git
+  targetRevision: develop
+  namespace: hertz-tuning-dev
+
+# Apps enablement
+apps:
+  monitoring:
+    enabled: true
+
 ## ArgoCD Server
 server:
   # Service Account with IRSA for ECR access
@@ -92,7 +103,7 @@ argocd-image-updater:
 # Application Git Settings
 applications:
   git:
-    targetRevision: develop  # 기본 브랜치
+    targetRevision: feature/k8s/prometheus  # 기본 브랜치
     # 환경별 브랜치 설정
     branches:
       dev: develop

@@ -7,7 +7,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: tuning-dev
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
@@ -23,10 +23,36 @@ spec:
             size: 5Gi
           service:
             type: LoadBalancer
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              url: http://loki:3100
+              access: proxy
+              isDefault: false
         prometheus:
           prometheusSpec:
             serviceMonitorSelector: {}
             serviceMonitorNamespaceSelector: {}
+            retention: 30d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp2
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+        prometheusOperator:
+          admissionWebhooks:
+            enabled: false
+          tls:
+            enabled: false
+        prometheus:
+          prometheusSpec:
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
+            ruleSelector: {}
+            ruleNamespaceSelector: {}
             retention: 30d
             storageSpec:
               volumeClaimTemplate:
@@ -58,4 +84,6 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - Replace=true
 {{- end }}
