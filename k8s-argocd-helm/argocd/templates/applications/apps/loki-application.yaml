@@ -15,18 +15,19 @@ spec:
     helm:
       releaseName: loki
       values: |
+        deploymentMode: SingleBinary
         loki:
           auth_enabled: false
+          commonConfig:
+            replication_factor: 1
           storage:
             type: filesystem
+        singleBinary:
+          replicas: 1
           persistence:
             enabled: true
-            storageClassName: gp2
+            storageClass: gp2
             size: 10Gi
-        gateway:
-          enabled: false
-        singleBinary:
-          enabled: true
           resources:
             requests:
               memory: 512Mi
@@ -34,6 +35,19 @@ spec:
             limits:
               memory: 1Gi
               cpu: 500m
+        backend:
+          replicas: 0
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        gateway:
+          enabled: false
+        monitoring:
+          selfMonitoring:
+            enabled: false
+        test:
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
