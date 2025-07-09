@@ -29,6 +29,11 @@ spec:
             enabled: true
             storageClassName: gp2
             size: 10Gi
+            annotations:
+              volume.beta.kubernetes.io/storage-class: gp2
+          nodeSelector:
+            kubernetes.io/os: linux
+            topology.kubernetes.io/zone: ap-northeast-2a
           resources:
             requests:
               memory: 512Mi
