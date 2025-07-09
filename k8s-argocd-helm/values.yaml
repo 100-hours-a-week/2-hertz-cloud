@@ -115,37 +115,37 @@ frontend:
     signoz:
       endpoint: "http://signoz-otel-collector.observability.svc.cluster.local:4318"
 
-# SigNoz chart values
-signoz:
-  global:
-    namespace: hertz-tuning-dev
-    environment: dev
-  signoz:
-    namespace: observability
-    storageClass: mysql-ebs
-    clickhouse:
-      storage:
-        size: 12Gi
-      resources:
-        requests:
-          memory: "4Gi"
-          cpu: "1000m"
-        limits:
-          memory: "8Gi"
-          cpu: "2000m"
-    zookeeper:
-      storage:
-        size: 6Gi
-      resources:
-        requests:
-          memory: "2Gi"
-          cpu: "500m"
-        limits:
-          memory: "4Gi"
-          cpu: "1000m"
-    kafka:
-      storage:
-        size: 6Gi
+# # SigNoz chart values
+# signoz:
+#   global:
+#     namespace: hertz-tuning-dev
+#     environment: dev
+#   signoz:
+#     namespace: observability
+#     storageClass: mysql-ebs
+#     clickhouse:
+#       storage:
+#         size: 12Gi
+#       resources:
+#         requests:
+#           memory: "4Gi"
+#           cpu: "1000m"
+#         limits:
+#           memory: "8Gi"
+#           cpu: "2000m"
+#     zookeeper:
+#       storage:
+#         size: 6Gi
+#       resources:
+#         requests:
+#           memory: "2Gi"
+#           cpu: "500m"
+#         limits:
+#           memory: "4Gi"
+#           cpu: "1000m"
+#     kafka:
+#       storage:
+#         size: 6Gi
 
 # ALB chart values
 alb:
