@@ -23,30 +23,6 @@ spec:
             size: 5Gi
           service:
             type: LoadBalancer
-          additionalDataSources:
-            - name: Loki
-              type: loki
-              url: http://loki:3100
-              access: proxy
-              isDefault: false
-        prometheus:
-          prometheusSpec:
-            serviceMonitorSelector: {}
-            serviceMonitorNamespaceSelector: {}
-            retention: 30d
-            storageSpec:
-              volumeClaimTemplate:
-                spec:
-                  storageClassName: gp2
-                  accessModes: ["ReadWriteOnce"]
-                  resources:
-                    requests:
-                      storage: 10Gi
-        prometheusOperator:
-          admissionWebhooks:
-            enabled: false
-          tls:
-            enabled: false
         prometheus:
           prometheusSpec:
             serviceMonitorSelector: {}
@@ -62,6 +38,11 @@ spec:
                   resources:
                     requests:
                       storage: 10Gi
+        prometheusOperator:
+          admissionWebhooks:
+            enabled: false
+          tls:
+            enabled: false
         nodeExporter:
           enabled: true
         alertmanager:

@@ -5,15 +5,16 @@ metadata:
   name: loki
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: tuning-dev
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki
-    targetRevision: 5.41.4
+    targetRevision: 5.8.0
     helm:
       releaseName: loki
+      skipCrds: true
       values: |
         deploymentMode: SingleBinary
         loki:
@@ -46,7 +47,11 @@ spec:
         monitoring:
           selfMonitoring:
             enabled: false
+            grafanaAgent:
+              installOperator: false
         test:
+          enabled: false
+        grafana-agent-operator:
           enabled: false
   destination:
     server: https://kubernetes.default.svc
