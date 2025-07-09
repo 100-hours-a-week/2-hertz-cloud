@@ -27,7 +27,7 @@ spec:
           replicas: 1
           persistence:
             enabled: true
-            storageClass: gp2
+            storageClassName: gp2
             size: 10Gi
           resources:
             requests:
@@ -81,18 +81,8 @@ spec:
       values: |
         config:
           lokiAddress: http://loki:3100/loki/api/v1/push
-          snippets:
-            extraScrapeConfigs: |
-              - job_name: kubernetes-pods
-                kubernetes_sd_configs:
-                  - role: pod
-                relabel_configs:
-                  - source_labels: [__meta_kubernetes_namespace]
-                    target_label: namespace
-                  - source_labels: [__meta_kubernetes_pod_name]
-                    target_label: pod
-                  - source_labels: [__meta_kubernetes_pod_container_name]
-                    target_label: container
+        daemonset:
+          enabled: true
         resources:
           requests:
             memory: 128Mi
