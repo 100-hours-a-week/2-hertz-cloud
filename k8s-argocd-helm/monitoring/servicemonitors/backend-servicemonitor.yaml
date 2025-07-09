@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: hertz-tuning-dev
+  labels:
+    app: springboot-be
+spec:
+  selector:
+    matchLabels:
+      app: springboot-be
+  endpoints:
+  - port: metrics
+    path: /actuator/prometheus
+    interval: 30s

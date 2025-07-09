@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-metrics
+  namespace: hertz-tuning-dev
+  labels:
+    app: nextjs-fe
+spec:
+  selector:
+    matchLabels:
+      app: nextjs-fe
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s

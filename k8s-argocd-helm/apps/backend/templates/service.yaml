@@ -14,3 +14,6 @@ spec:
     - name: websocket
       port: {{ .Values.app.ports.websocket }}
       targetPort: {{ .Values.app.ports.websocket }}
+    - name: metrics
+      port: {{ .Values.app.ports.http }}
+      targetPort: {{ .Values.app.ports.http }}
