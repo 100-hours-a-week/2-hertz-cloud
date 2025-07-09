@@ -1,0 +1,3 @@
+monitoring:
+  namespace: monitoring
+  storageClass: gp2

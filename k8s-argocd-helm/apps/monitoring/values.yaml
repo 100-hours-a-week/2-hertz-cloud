@@ -1,0 +1,88 @@
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: ebs-sc # 프로젝트의 다른 부분과 일관성을 맞춤
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+      retention: 30d
+      resources:
+        requests:
+          memory: 1Gi
+          cpu: 500m
+        limits:
+          memory: 2Gi
+          cpu: 1000m
+  
+  grafana:
+    enabled: true
+    adminPassword: admin123
+    persistence:
+      enabled: true
+      storageClassName: ebs-sc # 프로젝트의 다른 부분과 일관성을 맞춤
+      size: 5Gi
+    service:
+      type: LoadBalancer
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 200m
+  
+  nodeExporter:
+    enabled: true
+  
+  kubeStateMetrics:
+    enabled: true
+  
+  alertmanager:
+    enabled: true
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: ebs-sc # 프로젝트의 다른 부분과 일관성을 맞춤
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
+
+loki:
+  enabled: true
+  loki:
+    auth_enabled: false
+    storage:
+      type: filesystem
+    persistence:
+      enabled: true
+      storageClassName: ebs-sc # 프로젝트의 다른 부분과 일관성을 맞춤
+      size: 10Gi
+  gateway:
+    enabled: false
+  singleBinary:
+    enabled: true
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+promtail:
+  enabled: true
+  config:
+    lokiAddress: http://monitoring-loki:3100/loki/api/v1/push
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m

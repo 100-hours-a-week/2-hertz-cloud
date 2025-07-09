@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: monitoring
+  labels:
+    app: backend
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - default
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-metrics
+  namespace: monitoring
+  labels:
+    app: frontend
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  namespaceSelector:
+    matchNames:
+    - default

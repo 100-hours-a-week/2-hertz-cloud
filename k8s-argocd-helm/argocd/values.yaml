@@ -1,5 +1,10 @@
 # ArgoCD Helm Chart Values for EKS (Port-forward access)
 
+# Global settings
+global:
+  repoURL: https://github.com/100-hours-a-week/2-hertz-cloud.git
+  targetRevision: develop
+
 ## ArgoCD Server
 server:
   # Service Account with IRSA for ECR access

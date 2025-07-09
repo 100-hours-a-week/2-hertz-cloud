@@ -1,0 +1,11 @@
+apiVersion: v2
+name: monitoring-infra
+description: Monitoring Infrastructure
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - monitoring
+  - infrastructure
+maintainers:
+  - name: hertz-team

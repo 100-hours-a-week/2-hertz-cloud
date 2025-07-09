@@ -19,6 +19,8 @@ apps:
     enabled: true
   signoz:
     enabled: true
+  monitoring:
+    enabled: true
 
 # Infrastructure enablement
 infrastructure:
@@ -29,6 +31,8 @@ infrastructure:
   secrets:
     enabled: true
   reloader:
+    enabled: true
+  monitoring:
     enabled: true
 
 # Backend chart values
@@ -180,3 +184,26 @@ secrets:
       name: aws-ssm-store
       region: ap-northeast-2
       path: /global/k8s/springboot/dev
+
+# Monitoring chart values
+monitoring:
+  global:
+    namespace: hertz-tuning-dev
+  prometheus:
+    retention: 30d
+    storage:
+      size: 10Gi
+      storageClass: gp2
+  grafana:
+    adminPassword: admin123
+    persistence:
+      size: 5Gi
+      storageClass: gp2
+    service:
+      type: LoadBalancer
+  loki:
+    storage:
+      size: 10Gi
+      storageClass: gp2
+  nodeExporter:
+    enabled: true
