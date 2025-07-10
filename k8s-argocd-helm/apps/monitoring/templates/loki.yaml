@@ -1,0 +1,29 @@
+{{- if .Values.loki.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: tuning-dev
+  source:
+    repoURL: {{ .Values.loki.chart.repository }}
+    chart: {{ .Values.loki.chart.name }}
+    targetRevision: {{ .Values.loki.chart.version }}
+    helm:
+      releaseName: loki
+      skipCrds: true
+      values: |
+{{ .Values.loki.config | toYaml | indent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.global.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}

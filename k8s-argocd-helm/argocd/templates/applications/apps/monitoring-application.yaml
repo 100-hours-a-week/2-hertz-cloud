@@ -9,53 +9,12 @@ metadata:
 spec:
   project: tuning-dev
   source:
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: kube-prometheus-stack
-    targetRevision: 55.5.0
+    repoURL: {{ .Values.global.repoURL }}
+    targetRevision: {{ .Values.global.targetRevision }}
+    path: k8s-argocd-helm/apps/monitoring
     helm:
-      releaseName: prometheus-stack
-      values: |
-        grafana:
-          adminPassword: "admin123"
-          persistence:
-            enabled: true
-            storageClassName: gp2
-            size: 5Gi
-          service:
-            type: LoadBalancer
-        prometheus:
-          prometheusSpec:
-            serviceMonitorSelector: {}
-            serviceMonitorNamespaceSelector: {}
-            ruleSelector: {}
-            ruleNamespaceSelector: {}
-            retention: 30d
-            storageSpec:
-              volumeClaimTemplate:
-                spec:
-                  storageClassName: gp2
-                  accessModes: ["ReadWriteOnce"]
-                  resources:
-                    requests:
-                      storage: 10Gi
-        prometheusOperator:
-          admissionWebhooks:
-            enabled: false
-          tls:
-            enabled: false
-        nodeExporter:
-          enabled: true
-        alertmanager:
-          enabled: true
-          alertmanagerSpec:
-            storage:
-              volumeClaimTemplate:
-                spec:
-                  storageClassName: gp2
-                  accessModes: ["ReadWriteOnce"]
-                  resources:
-                    requests:
-                      storage: 2Gi
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

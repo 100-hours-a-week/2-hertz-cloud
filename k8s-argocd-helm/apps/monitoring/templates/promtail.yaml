@@ -1,0 +1,26 @@
+{{- if .Values.promtail.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: promtail
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: tuning-dev
+  source:
+    repoURL: {{ .Values.promtail.chart.repository }}
+    chart: {{ .Values.promtail.chart.name }}
+    targetRevision: {{ .Values.promtail.chart.version }}
+    helm:
+      releaseName: promtail
+      values: |
+{{ .Values.promtail.config | toYaml | indent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.global.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{{- end }}

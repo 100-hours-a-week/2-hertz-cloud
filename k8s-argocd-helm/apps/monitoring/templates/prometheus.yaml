@@ -1,0 +1,28 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: tuning-dev
+  source:
+    repoURL: {{ .Values.prometheus.chart.repository }}
+    chart: {{ .Values.prometheus.chart.name }}
+    targetRevision: {{ .Values.prometheus.chart.version }}
+    helm:
+      releaseName: prometheus-stack
+      values: |
+{{ .Values.prometheus.config | toYaml | indent 8 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.global.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}

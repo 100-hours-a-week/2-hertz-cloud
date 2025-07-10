@@ -1,0 +1,128 @@
+# Monitoring Stack Configuration
+global:
+  namespace: monitoring
+
+# Prometheus Stack Configuration
+prometheus:
+  enabled: true
+  chart:
+    repository: https://prometheus-community.github.io/helm-charts
+    name: kube-prometheus-stack
+    version: 55.5.0
+  config:
+    grafana:
+      adminPassword: "admin123"
+      persistence:
+        enabled: true
+        storageClassName: gp2
+        size: 5Gi
+      service:
+        type: LoadBalancer
+    prometheus:
+      prometheusSpec:
+        serviceMonitorSelector: {}
+        serviceMonitorNamespaceSelector: {}
+        ruleSelector: {}
+        ruleNamespaceSelector: {}
+        retention: 30d
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp2
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+    prometheusOperator:
+      admissionWebhooks:
+        enabled: false
+      tls:
+        enabled: false
+    nodeExporter:
+      enabled: true
+    alertmanager:
+      enabled: true
+      alertmanagerSpec:
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp2
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 2Gi
+
+# Loki Configuration
+loki:
+  enabled: true
+  chart:
+    repository: https://grafana.github.io/helm-charts
+    name: loki
+    version: 5.8.0
+  config:
+    deploymentMode: SingleBinary
+    loki:
+      auth_enabled: false
+      commonConfig:
+        replication_factor: 1
+      storage:
+        type: filesystem
+        filesystem:
+          directory: /loki
+    singleBinary:
+      replicas: 1
+      persistence:
+        enabled: false
+      extraVolumes:
+        - name: loki-data
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: loki-data
+          mountPath: /loki
+      nodeSelector:
+        kubernetes.io/os: linux
+        topology.kubernetes.io/zone: ap-northeast-2a
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: 200m
+        limits:
+          memory: 1Gi
+          cpu: 500m
+    backend:
+      replicas: 0
+    read:
+      replicas: 0
+    write:
+      replicas: 0
+    gateway:
+      enabled: false
+    monitoring:
+      selfMonitoring:
+        enabled: false
+        grafanaAgent:
+          installOperator: false
+    test:
+      enabled: false
+    grafana-agent-operator:
+      enabled: false
+
+# Promtail Configuration
+promtail:
+  enabled: true
+  chart:
+    repository: https://grafana.github.io/helm-charts
+    name: promtail
+    version: 6.15.3
+  config:
+    config:
+      lokiAddress: http://loki:3100/loki/api/v1/push
+    daemonset:
+      enabled: true
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 100m
+      limits:
+        memory: 256Mi
+        cpu: 200m
