@@ -213,37 +213,73 @@ promtail:
       server:
         http_listen_port: 3101
         grpc_listen_port: 0
+
       clients:
       - url: http://loki:3100/loki/api/v1/push
-        batchwait: 1s         # 로그 전송 주기 (기본 1초)
-        batchsize: 1048576    # 최대 전송 크기 (1MB)
+        batchwait: 1s
+        batchsize: 1048576
         backoff_config:
-          min_period: 500ms   # 최소 대기 간격
-          max_period: 5s      # 최대 대기 간격
-          max_retries: 10     # 최대 재시도 횟수
-     
+          min_period: 500ms
+          max_period: 5s
+          max_retries: 10
+
       scrape_configs:
       - job_name: kubernetes-pods
         kubernetes_sd_configs:
         - role: pod
+
         pipeline_stages:
+        # 1) 로그 수준(level) 추출
+        - regex:
+            expression: 'level=(?P<level>ERROR|INFO|WARN|DEBUG|TRACE|SEVERE)'
+        - labels:
+            level:
+
+        # 2) HTTP 메서드(method) 추출
+        - regex:
+            expression: 'method=(?P<method>GET|POST|PUT|DELETE|HEAD|OPTIONS)'
+        - labels:
+            method:
+
+        # 3) 요청 경로(path) 추출
+        - regex:
+            expression: 'path=(?P<path>\\S+)'
+        - labels:
+            path:
+
+        # 4) 상태 코드(status) 추출
+        - regex:
+            expression: 'status=(?P<status>\\d{3})'
+        - labels:
+            status:
+
+        # 5) 기존 Docker 메타데이터 파싱
         - docker: {}
+
         relabel_configs:
         - source_labels: [__meta_kubernetes_pod_controller_name]
-          regex: ([0-9a-z-.]+?)(-[0-9a-f]{8,10})?
+          regex: '([0-9a-z-.]+?)(-[0-9a-f]{8,10})?'
           target_label: __tmp_controller_name
-        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_label_app, __tmp_controller_name, __meta_kubernetes_pod_name]
-          regex: ^;*([^;]+)(;.*)?$
+        - source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_name
+          - __meta_kubernetes_pod_label_app
+          - __tmp_controller_name
+          - __meta_kubernetes_pod_name
+          regex: '^;*([^;]+)(;.*)?$'
+          replacement: '$1'
           target_label: app
-          replacement: $1
-        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance, __meta_kubernetes_pod_label_instance]
-          regex: ^;*([^;]+)(;.*)?$
+        - source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_instance
+          - __meta_kubernetes_pod_label_instance
+          regex: '^;*([^;]+)(;.*)?$'
+          replacement: '$1'
           target_label: instance
-          replacement: $1
-        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component, __meta_kubernetes_pod_label_component]
-          regex: ^;*([^;]+)(;.*)?$
+        - source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_component
+          - __meta_kubernetes_pod_label_component
+          regex: '^;*([^;]+)(;.*)?$'
+          replacement: '$1'
           target_label: component
-          replacement: $1
         - source_labels: [__meta_kubernetes_pod_node_name]
           target_label: node_name
         - source_labels: [__meta_kubernetes_namespace]
@@ -252,12 +288,16 @@ promtail:
           target_label: pod
         - source_labels: [__meta_kubernetes_pod_container_name]
           target_label: container
-        - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+        - source_labels:
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+          separator: '/'
+          replacement: '/var/log/pods/*$1/*.log'
           target_label: __path__
-          separator: /
-          replacement: /var/log/pods/*$1/*.log
+
     daemonset:
       enabled: true
+
     resources:
       requests:
         memory: 128Mi
