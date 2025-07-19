@@ -79,7 +79,7 @@ jobs:
             if [[ "${{ github.ref_name }}" == "main" ]]; then
               load_param "/global/gcp/PROD_GCP_HOST_AI" HOST
               load_param "/global/gcp/PROD_GCP_INSTANCE_AI" INSTANCE
-              load_param "/global/gcp/POD_GCP_PROJECT_ID" PROJECT_ID
+              load_param "/global/gcp/PROD_GCP_PROJECT_ID" PROJECT_ID
               load_param "/global/gcp/PROD_GCP_ZONE" ZONE
               load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY" gcp-sa-key.json
             else
