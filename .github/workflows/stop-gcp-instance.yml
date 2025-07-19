@@ -28,8 +28,7 @@ env:
   DEV_INSTANCE_AI: ${{ secrets.DEV_GCP_INSTANCE_AI }}
   PROD_INSTANCE_GPU: ${{ secrets.PROD_INSTANCE_GPU }}
   PROJECT_ID_GPU: ${{ secrets.PROJECT_ID_GPU }}
-  PROJECT_ID_CHAT_REPORT: ${{ secrets.PROD_GCP_PROJECT_ID }}
-  PROD_INSTANCE_CHAT_REPORT: ${{ secrets.PROD_INSTANCE_CHAT_REPORT }}
+ 
 
   
 
@@ -39,7 +38,7 @@ jobs:
 
     steps:
       - name: Configure AWS credentials
-        if: ${{ inputs.target == 'TEST' }} || ${{ inputs.target == 'KAFKA' }}
+        if: ${{ inputs.target == 'TEST' || inputs.target == 'KAFKA' || inputs.target == 'CHAT-REPORT' }}
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -47,12 +46,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to ECR
-        if: ${{ inputs.target == 'TEST' }} || ${{ inputs.target == 'KAFKA' }}
+        if: ${{ inputs.target == 'TEST' || inputs.target == 'KAFKA' || inputs.target == 'CHAT-REPORT' }}
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
       
       - name: Set environment variables from SSM
-        if: ${{ inputs.target == 'TEST' }} || ${{ inputs.target == 'KAFKA' }}
+        if: ${{ inputs.target == 'TEST' || inputs.target == 'KAFKA' || inputs.target == 'CHAT-REPORT' }}
         env:
           TARGET: ${{ inputs.target }}
         run: |
@@ -88,6 +87,13 @@ jobs:
             load_param "/global/gcp/kafka/PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/kafka/ZONE" ZONE
             load_secret_to_file "/global/gcp/kafka/SA_KEY" gcp-sa-key.json
+          elif [[ "$TARGET" == "CHAT-REPORT" ]]; then
+            load_param "/global/gcp/chat/GCP_HOST" HOST
+            load_param "/global/gcp/chat/GCP_INSTANCE" INSTANCE
+            load_param "/global/gcp/chat/GCP_PROJECT_ID" PROJECT_ID
+            load_param "/global/gcp/chat/GCP_ZONE" ZONE
+            load_secret_to_file "/global/gcp/chat/GCP_SA_KEY" gcp-sa-key.json      
+            
           else
             echo "❌ 잘못된 타겟: $TARGET"
             exit 1
@@ -99,10 +105,11 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "TARGET=${{ inputs.target}}" >> $GITHUB_ENV
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "ENV=$BRANCH" >> $GITHUB_ENV
 
 
       - name: Set environment
-        if: ${{ inputs.target != 'TEST' && inputs.target != 'KAFKA' }}        
+        if: ${{ inputs.target != 'TEST' && inputs.target != 'KAFKA' && inputs.target != 'CHAT-REPORT' }}        
         run: |
           BRANCH="${{ github.ref_name }}"
           TARGET="${{ github.event.inputs.target }}"
@@ -118,10 +125,6 @@ jobs:
             elif [[ "$TARGET" == "GPU" ]]; then
               echo "PROJECT_ID=${{ env.PROJECT_ID_GPU }}" >> $GITHUB_ENV
               echo "INSTANCE=${{ env.PROD_INSTANCE_GPU }}" >> $GITHUB_ENV
-              echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
-            elif [[ "$TARGET" == "CHAT-REPORT" ]]; then
-              echo "PROJECT_ID=${{ env.PROJECT_ID_CHAT_REPORT }}" >> $GITHUB_ENV
-              echo "INSTANCE=${{ env.PROD_INSTANCE_CHAT_REPORT }}" >> $GITHUB_ENV
               echo "ZONE=${{ env.ZONE }}" >> $GITHUB_ENV
             else
               echo "INSTANCE=${{ env.PROD_INSTANCE }}" >> $GITHUB_ENV
@@ -169,13 +172,14 @@ jobs:
         if: github.event.inputs.target == 'CHAT-REPORT' && github.event.inputs.target  != 'TEST' 
         uses: google-github-actions/auth@v1
         with:
-            credentials_json: ${{ secrets.PROD_GCP_SA_KEY }}
+            credentials_json: ${{ env.SA_KEY }}
       
       - name: Authenticate to GCP KAFKA
         if: github.event.inputs.target == 'KAFKA' 
         uses: google-github-actions/auth@v1
         with:
             credentials_json: ${{ env.SA_KEY }}
+
 
 
       - name: Setup gcloud CLI

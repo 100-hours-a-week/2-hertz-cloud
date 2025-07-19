@@ -2,6 +2,7 @@
 # Global settings
 global:
   namespace: hertz-tuning-prod
+  evironment: prod
 
 # Ingress settings
 ingress:

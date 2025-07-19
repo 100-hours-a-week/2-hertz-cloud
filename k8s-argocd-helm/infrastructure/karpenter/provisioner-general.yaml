@@ -6,38 +6,16 @@ spec:
   requirements:
     - key: node.kubernetes.io/instance-type
       operator: In
-      values: ["t3.medium", "t3.small", "t3.micro"] # 일반 애플리케이션 용도
+      values: ["t3.xlarge", "t3.large", "t3.medium", "t3.small", "t3.micro"] # 일반 애플리케이션 용도
     - key: karpenter.sh/capacity-type
       operator: In
-      values: ["spot", "on-demand"] # On-Demand 인스턴스 사용
+      values: ["on-demand"] # On-Demand 인스턴스 사용
   providerRef:
     name: default
   limits:
     resources:
-      cpu: "8" # 총 8 vCPU 이상 노드 생성하지 않도록 제한 (선택적)
+      cpu: "16" # 총 8 vCPU 이상 노드 생성하지 않도록 제한 (선택적)
   labels:
     workload-type: "general"
-  consolidation:
-    enabled: true
----
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: memory-optimized-workload
-spec:
-  requirements:
-    - key: node.kubernetes.io/instance-type
-      operator: In
-      values: ["t3.large", "t3.xlarge", "m5.large"] # 메모리 최적화 애플리케이션 용도
-    - key: karpenter.sh/capacity-type
-      operator: In
-      values: ["spot", "on-demand"] # On-Demand 인스턴스 사용
-  providerRef:
-    name: default
-  limits:
-    resources:
-      cpu: "8" # 총 8 vCPU 이상 노드 생성하지 않도록 제한 (선택적)
-  labels:
-    workload-type: "memory-optimized"
   consolidation:
     enabled: true

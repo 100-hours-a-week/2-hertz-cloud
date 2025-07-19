@@ -194,12 +194,12 @@ loki:
         storageClass: gp2
         size:         10Gi
       resources:
-        requests:
-          cpu:    100m
-          memory: 256Mi
-        limits:
-          cpu:    200m
-          memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
 
 # Promtail Configuration
 promtail:
@@ -215,6 +215,13 @@ promtail:
         grpc_listen_port: 0
       clients:
       - url: http://loki:3100/loki/api/v1/push
+        batchwait: 1s         # 로그 전송 주기 (기본 1초)
+        batchsize: 1048576    # 최대 전송 크기 (1MB)
+        backoff_config:
+          min_period: 500ms   # 최소 대기 간격
+          max_period: 5s      # 최대 대기 간격
+          max_retries: 10     # 최대 재시도 횟수
+     
       scrape_configs:
       - job_name: kubernetes-pods
         kubernetes_sd_configs:
