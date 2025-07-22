@@ -14,6 +14,10 @@ on:
         description: 'ECR Image Tag (e.g., k8s-develop-abc1234)'
         required: true
         type: string
+      source_branch:
+        description: 'main/develop'
+        required: true
+        default: 'develop'
       target_branch:
         description: 'Target ArgoCD branch'
         required: false
@@ -124,7 +128,7 @@ jobs:
           REPOSITORY="tuning-${{ inputs.service == 'backend' && 'springboot' || 'nextjs' }}"
           IMAGE_TAG="${{ inputs.image_tag }}"
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          ENV_TAG="${{ inputs.target_branch == 'main' && 'k8s-main-latest' || 'k8s-develop-latest' }}"
+          ENV_TAG="${{ inputs.source_branch == 'main' && 'k8s-main-latest' || 'k8s-develop-latest' }}"
           echo "🏷️ Tagging image as $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
           docker tag "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" \
                      "$ECR_REGISTRY/$REPOSITORY:$ENV_TAG"

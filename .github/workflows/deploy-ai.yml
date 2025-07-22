@@ -11,6 +11,7 @@ on:
           - "tuning-api"
           - "app.hertz-tuning-api"
           - "chat-report"
+          - "chat-report-test"
       rollback:
         description: "롤백 배포를 수행할까요?"
         required: false
@@ -69,6 +70,12 @@ jobs:
             load_param "/global/gcp/chat/GCP_PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/chat/GCP_ZONE" ZONE
             load_secret_to_file "/global/gcp/chat/GCP_SA_KEY" gcp-sa-key.json
+          elif [[ ${{github.event.inputs.service}} == 'chat-report-test' ]]; then
+            load_param "/global/gcp/chat/GCP_HOST_TEST" HOST
+            load_param "/global/gcp/chat/GCP_INSTANCE_TEST" INSTANCE
+            load_param "/global/gcp/chat/GCP_PROJECT_ID_TEST" PROJECT_ID
+            load_param "/global/gcp/chat/GCP_ZONE_TEST" ZONE
+            load_secret_to_file "/global/gcp/chat/GCP_SA_KEY_TEST" gcp-sa-key.json
           elif [[ ${{github.event.inputs.service}} == 'app.hertz-tuning-api' ]]; then
             load_param "/global/gcp/app/GCP_HOST" HOST
             load_param "/global/gcp/app/GCP_INSTANCE" INSTANCE
@@ -119,6 +126,8 @@ jobs:
           if [[ "${{ github.event.inputs.rollback }}" == "true" ]]; then
             echo "DEPLOY_MESSAGE=🚨 **[${{ env.ENV }} 환경]** ${{ github.event.inputs.service }} 롤백 완료(수동)" >> $GITHUB_ENV
           elif [[ "${{ env.SERVICE }}" == "chat-report" ]]; then
+            echo "DEPLOY_MESSAGE=🚀 **[${{ env.ENV }} 환경]** ${{ github.event.inputs.service }} 배포 완료(수동)" >> $GITHUB_ENV
+          elif [[ "${{ env.SERVICE }}" == "chat-report-test" ]]; then
             echo "DEPLOY_MESSAGE=🚀 **[${{ env.ENV }} 환경]** ${{ github.event.inputs.service }} 배포 완료(수동)" >> $GITHUB_ENV
           else
             echo "DEPLOY_MESSAGE=🚀 **[${{ env.ENV }} 환경]** ${{ github.event.inputs.service }}" >> $GITHUB_ENV
