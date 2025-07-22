@@ -68,7 +68,7 @@ spec:
               value: "-javaagent:/otel/opentelemetry-javaagent.jar"
             # fcm.certification 속성에 마운트된 파일의 절대 경로를 지정합니다.
             - name: FCM_CERTIFICATION
-              value: "tuning-fcm-certification.json"
+              value: "/app/resources/tuning-fcm-certification.json"
             - name: KAFKA_SSE_GROUP_ID
               valueFrom:
                 fieldRef:
@@ -118,12 +118,6 @@ spec:
       volumes:
         - name: otel-agent
           emptyDir: {}
-        # - name: fcm-cert-volume
-        #   secret:
-        #     secretName: springboot-fcm-secret
-        #     items:
-        #       - key: tuning-fcm-certification.json
-        #         path: tuning-fcm-certification.json
         - name: fcm-cert-volume
           secret:
             secretName: springboot-fcm-secret
